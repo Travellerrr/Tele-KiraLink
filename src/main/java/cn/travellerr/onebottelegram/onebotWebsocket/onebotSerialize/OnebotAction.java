@@ -7,16 +7,16 @@ import cn.travellerr.onebotApi.*;
 import cn.travellerr.onebottelegram.hibernate.entity.Group;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
 import com.pengrad.telegrambot.model.ChatMember;
-import com.pengrad.telegrambot.model.UserProfilePhotos;
 import com.pengrad.telegrambot.request.GetChatMember;
-import com.pengrad.telegrambot.request.GetUserProfilePhotos;
 import com.pengrad.telegrambot.request.SendMessage;
+import com.pengrad.telegrambot.request.SendPhoto;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
 import static org.reflections.Reflections.log;
@@ -43,6 +43,7 @@ public class OnebotAction {
                     break;
                 case "get_group_member_list":
                     long groupId = jsonObject.getJSONObject("params").getLong("group_id");
+
                     session.sendMessage(getGroupMemberList(echo, groupId));
                     break;
                 case "get_group_member_info":
@@ -57,6 +58,8 @@ public class OnebotAction {
                     break;
                 case "get_avatar":
                     long userId = jsonObject.getJSONObject("params").getLong("user_id");
+                    JSONObject obj = new JSONObject().set("echo", echo).set("message", "https://avatars.githubusercontent.com/u/139743802?v=4&size=256").set("retcode", 0).set("user_id", userId);
+                    session.sendMessage(new TextMessage(obj.toString()));
                     break;
 
 
@@ -151,11 +154,11 @@ public class OnebotAction {
     private static TextMessage sendGroupMessage(int echo, long groupId, String messageStr) {
         System.out.println("消息"+messageStr);
         JSONArray messageArray = new JSONArray(messageStr);
-        JSONObject message = messageArray.getJSONObject(0);
 
         StringBuilder sb = new StringBuilder();
+        SendPhoto photo = null;
 
-        messageArray.forEach(m -> {
+        for(Object m : messageArray) {
             JSONObject msg = (JSONObject) m;
 
             if (msg.getStr("type").equals("at")) {
@@ -165,16 +168,38 @@ public class OnebotAction {
             if (msg.getStr("type").equals("text")) {
                 sb.append(msg.getJSONObject("data").getStr("text"));
             }
-        });
+            if (msg.getStr("type").equals("image")) {
+                if (msg.getJSONObject("data").getStr("file").startsWith("file://")) {
+                    File file = new File(msg.getJSONObject("data").getStr("file").substring(7));
+                    photo = new SendPhoto(groupId, file);
+                } else if(msg.getJSONObject("data").getStr("file").startsWith("base64://")) {
+                    byte[] bytes = Base64.getDecoder().decode(msg.getJSONObject("data").getStr("file").substring(9));
+                    photo = new SendPhoto(groupId, bytes);
+                }
+
+                else {
+                    sb.append("[图片消息, 暂不支持传输]");
+                }
+            }
+        }
 
         String text = sb.toString();
-        SendMessage request = new SendMessage(groupId, text);
-        SendResponse response = TelegramApi.bot.execute(request);
+        SendResponse response;
+
+        if (photo != null) {
+            photo.caption(text);
+            response = TelegramApi.bot.execute(photo);
+        } else {
+            SendMessage request = new SendMessage(groupId, text);
+            response = TelegramApi.bot.execute(request);
+        }
 
         if (!response.isOk()) {
-            return new TextMessage(new JSONObject(new Data(echo, response.description(), 0, "failed", "")).toString());
+            JSONObject obj = new JSONObject().set("error_code", response.description());
+            return new TextMessage(new JSONObject(new Data(echo, "", 0, "failed", "")).set("data", obj).toString());
         } else {
-            return new TextMessage(new JSONObject(new Data(echo, "{\"message_id\": "+response.message().messageId()+"}", 0, "ok", "")).toString());
+            JSONObject obj = new JSONObject().set("message_id", response.message().messageId());
+            return new TextMessage(new JSONObject(new Data(echo, "", 0, "ok", "")).set("data", obj).toString());
         }
     }
 
@@ -186,10 +211,7 @@ public class OnebotAction {
 
     private static MemberInfo getChatMember(long groupId, long memberId) {
         ChatMember chat = TelegramApi.bot.execute(new GetChatMember(groupId, memberId)).chatMember();
-        String title = chat.customTitle();
-        if (title == null) {
-            title = "";
-        }
+        String title = "";
         return new MemberInfo(groupId, memberId, chat.user().username(), chat.user().firstName(), "unknown", 0, "虚拟地区", 0, 0, "0",levelConverter(String.valueOf(chat.status())),false , title,0 ,chat.canChangeInfo());
     }
 

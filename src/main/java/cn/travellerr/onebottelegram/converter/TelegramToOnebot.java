@@ -12,7 +12,6 @@ import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.request.GetChatMemberCount;
-import com.pengrad.telegrambot.response.BaseResponse;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -26,7 +25,7 @@ public class TelegramToOnebot implements ApplicationRunner {
         TelegramApi.init();
     }
 
-    public static boolean forwardToOnebot(Update update) {
+    public static void forwardToOnebot(Update update) {
         if (update.message() != null&&update.message().text() != null) {
 
             if (update.message().chat().type().equals(Chat.Type.group) || update.message().chat().type().equals(Chat.Type.supergroup)) {
@@ -68,8 +67,6 @@ public class TelegramToOnebot implements ApplicationRunner {
             OneBotWebSocketHandler.broadcast(object.toString());
 
 
-            return true;
         }
-        return false;
     }
 }

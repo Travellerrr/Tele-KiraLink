@@ -2,7 +2,6 @@ package cn.travellerr.onebotApi
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.serializer
 
 @Serializable
 data class GroupMessage(
@@ -47,7 +46,7 @@ data class GroupMessage(
     val message_format: String
 )
 
-
+@Serializable
 data class Data(
     val echo: Int,
     val message: String = "",

@@ -1,136 +1,158 @@
 package cn.travellerr.onebottelegram.config;
 
 import cn.chahuyun.hibernateplus.DriveType;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.env.EnvironmentPostProcessor;
-import org.springframework.core.env.ConfigurableEnvironment;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.support.ResourcePropertySource;
-import org.springframework.stereotype.Component;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
-import org.yaml.snakeyaml.nodes.Tag;
 import org.yaml.snakeyaml.representer.Representer;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.Writer;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 
 import static org.reflections.Reflections.log;
 
-
 public class ConfigGenerator {
+
+    /**
+     * 智能加载配置（自动合并新增字段）
+     */
     public static Config loadConfig() {
-        // 获取配置文件路径
-        String filePath = Config.class.getAnnotation(ConfigEntity.class).filePath();
-        // 获取配置文件名
-        String fileName = Config.class.getAnnotation(ConfigEntity.class).name() + ".yml";
-
-        // 创建配置文件对象
-        File file = new File(filePath + File.separator + fileName);
-
-        // 创建Yaml对象，设置Representer
-        Yaml yaml = createYaml();
-
         try {
-            // 如果配置文件不存在，则创建配置文件
-            if (!file.exists()) {
-                if (!new File(filePath).mkdirs()) {
-                    log.error("创建配置文件失败");
-                }
-                // 创建配置对象
-            Config newConfig = Config.builder()
-                .telegram(
-                    Config.telegram.builder()
-                        .bot(
-                            Config.telegram.bot.builder()
-                                .token("your-telegram-token")
-                                .username("your-telegram-username")
-                                .build()
-                        )
-                        .build()
-                )
-                .onebot(
-                    Config.onebot.builder()
-                        .ip("your-onebot-ip")
-                        .path("your-onebot-path")
-                        .port(0)
-                        .build()
-                )
-                .spring(
-                    Config.spring.builder()
-                        .jackson(
-                            Config.spring.jackson.builder()
-                                .dateformat("yyyy-MM-dd HH:mm:ss")
-                                .timezone("Asia/Shanghai")
-                                .build()
-                        )
-                        .database(
-                            Config.spring.database.builder()
-                                    .mysqlUser("")
-                                    .mysqlUrl("")
-                                    .mysqlPassword("")
-                                    .dataType(DriveType.H2)
-                                    .build()
-                        )
-                        .build()
-                )
-                .build();
+            // 获取配置元信息
+            ConfigEntity entity = Config.class.getAnnotation(ConfigEntity.class);
+            Path configPath = Path.of(entity.filePath(), entity.name() + ".yml");
 
+            // 生成默认配置模板
+            Config defaultConfig = createDefaultConfig();
 
-                // 将配置对象写入配置文件
-                yaml.dump(newConfig, new FileWriter(file));
-                log.warn("请修改配置文件: " + file.getAbsolutePath());
+            // 如果配置文件不存在则初始化
+            if (!Files.exists(configPath)) {
+                Files.createDirectories(configPath.getParent());
+                writeConfig(configPath, defaultConfig);
+                log.warn("已生成默认配置文件，请修改后重启: {}", configPath);
                 System.exit(0);
             }
 
-            // 从配置文件中加载配置对象
-            return yaml.loadAs(new FileReader(file), Config.class);
+            // 加载现有配置
+            Config existingConfig = readConfig(configPath);
 
+            Config mergedConfig = mergeConfigs(defaultConfig, existingConfig);
+            // 自动合并新增字段
+
+            writeConfig(configPath, mergedConfig);
+            // 如果发现变化则保存
+
+            return mergeConfigs(defaultConfig, existingConfig);
         } catch (Exception e) {
-            log.error("加载配置文件失败: " + e.getMessage());
+            log.error("配置加载失败", e);
+            throw new IllegalStateException("配置加载失败", e);
         }
-        return new Config();
     }
 
-    // 保存配置文件
-    public static boolean saveConfig(Config config) {
-        // 获取配置文件路径
-        String filePath = config.getClass().getAnnotation(ConfigEntity.class).filePath();
-        // 获取配置文件名
-        String fileName = config.getClass().getAnnotation(ConfigEntity.class).name() + ".yml";
+    /**
+     * 递归合并配置对象（保留用户配置，补充新增字段）
+     */
+    private static Config mergeConfigs(Config source, Config target) throws Exception {
+        // 通过反射深度合并对象
+        mergeObjects(source, target);
+        return target;
+    }
 
-        // 创建配置文件对象
-        File file = new File(filePath + File.separator + fileName);
+    private static void mergeObjects(Object source, Object target) throws Exception {
+        Class<?> clazz = source.getClass();
+        for (Field field : clazz.getDeclaredFields()) {
+            field.setAccessible(true);
 
-        // 创建Yaml对象，设置Representer
+            Object sourceValue = field.get(source);
+            Object targetValue = field.get(target);
+
+            if (targetValue == null) {
+                // 填充缺失字段
+                field.set(target, sourceValue);
+            } else if (isComplexType(field.getType())) {
+                // 递归处理嵌套对象
+                mergeObjects(sourceValue, targetValue);
+            }
+        }
+    }
+
+    private static boolean isComplexType(Class<?> type) {
+        return !type.isPrimitive()
+                && !type.equals(String.class)
+                && !type.isEnum();
+    }
+
+    /**
+     * 创建默认配置模板
+     */
+    private static Config createDefaultConfig() {
+        return Config.builder()
+                .telegram(Config.telegram.builder()
+                        .bot(Config.telegram.bot.builder()
+                                .token("123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
+                                .username("bot_username")
+                                .proxy(Config.telegram.bot.proxy.builder()
+                                        .host("127.0.0.1")
+                                        .port(-1)
+                                        .secret("")
+                                        .username("")
+                                        .type("SOCKS5")
+                                        .build()).build()).build())
+                .onebot(Config.onebot.builder()
+                        .ip("0.0.0.0")
+                        .path("/ws")
+                        .port(6700)
+                        .build())
+                .spring(Config.spring.builder()
+                        .jackson(Config.spring.jackson.builder()
+                                .dateformat("yyyy-MM-dd HH:mm:ss")
+                                .timezone("Asia/Shanghai")
+                                .build())
+                        .database(Config.spring.database.builder()
+                                .dataType(DriveType.MYSQL)
+                                .mysqlUrl("jdbc:mysql://localhost:3306/onebot_telegram?useSSL=false&serverTimezone=Asia/Shanghai")
+                                .mysqlUser("root")
+                                .mysqlPassword("root")
+                                .build())
+                        .build())
+                .build();
+    }
+
+    /**
+     * 序列化配置到文件
+     */
+    private static void writeConfig(Path path, Config config) throws IOException {
         Yaml yaml = createYaml();
-
-        try {
-            // 将配置对象写入配置文件
-            yaml.dump(config, new FileWriter(file));
-            return true;
-
-        } catch (Exception e) {
-            log.error("保存配置文件失败: " + e.getMessage());
+        try (Writer writer = Files.newBufferedWriter(path)) {
+            yaml.dump(config, writer);
         }
-        return false;
     }
 
+    /**
+     * 从文件反序列化配置
+     */
+    private static Config readConfig(Path path) throws IOException {
+        Yaml yaml = createYaml();
+        try (Reader reader = Files.newBufferedReader(path)) {
+            return yaml.loadAs(reader, Config.class);
+        }
+    }
+
+    /**
+     * 创建定制化的YAML处理器
+     */
     private static Yaml createYaml() {
-        DumperOptions dumperOptions = new DumperOptions();
-        dumperOptions.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
-        dumperOptions.setPrettyFlow(true);
+        DumperOptions options = new DumperOptions();
+        options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
+        options.setIndent(2);
+        options.setPrettyFlow(true);
 
-        Representer representer = new Representer(dumperOptions);
-        representer.addClassTag(Config.class, Tag.MAP);
+        Representer representer = new Representer(options);
+        representer.getPropertyUtils().setSkipMissingProperties(true);
 
-        return new Yaml(representer, dumperOptions);
+        return new Yaml(representer, options);
     }
 }

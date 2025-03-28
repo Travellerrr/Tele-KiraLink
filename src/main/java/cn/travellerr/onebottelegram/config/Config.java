@@ -1,9 +1,10 @@
 package cn.travellerr.onebottelegram.config;
 
 import cn.chahuyun.hibernateplus.DriveType;
-import lombok.*;
-import org.h2.value.DataType;
-import org.springframework.context.annotation.Configuration;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 @Data
@@ -33,6 +34,20 @@ public class Config {
         public static class bot {
             private String token;
             private String username;
+            private Config.telegram.bot.proxy proxy;
+
+            @Data
+            @Builder
+            @AllArgsConstructor
+            @NoArgsConstructor
+            public static class proxy {
+                private String host;
+                private int port;
+                private String username;
+                private String secret;
+                private String type;
+            }
+
 
         }
     }

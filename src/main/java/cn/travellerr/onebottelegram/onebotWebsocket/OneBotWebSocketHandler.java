@@ -1,7 +1,8 @@
 package cn.travellerr.onebottelegram.onebotWebsocket;
 
-import cn.travellerr.onebottelegram.OnebotTelegramApplication;
 import cn.travellerr.onebottelegram.onebotWebsocket.onebotSerialize.OnebotAction;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
@@ -25,7 +26,8 @@ public class OneBotWebSocketHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(OneBotWebSocketHandler.class);
     public static final Set<WebSocketSession> sessions = ConcurrentHashMap.newKeySet();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper(JsonFactory.builder().streamReadConstraints(StreamReadConstraints.builder()
+            .maxStringLength(102400000).build()).build());
 
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) {
@@ -84,4 +86,7 @@ public class OneBotWebSocketHandler extends TextWebSocketHandler {
             }
         });
     }
+
+
+
 }
