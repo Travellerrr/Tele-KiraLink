@@ -19,7 +19,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class TelegramToOnebot implements ApplicationRunner {
     @Override
-    public void run(ApplicationArguments args) throws Exception {
+    public void run(ApplicationArguments args) {
         System.out.println("Telegram to Onebot converter is running...");
         HibernateUtil.init(OnebotTelegramApplication.INSTANCE);
         TelegramApi.init();
@@ -54,15 +54,12 @@ public class TelegramToOnebot implements ApplicationRunner {
             String realMessage = update.message().text().replace("@"+TelegramApi.getMeResponse.user().username(), "").trim();
 
 
-//            Message message = new Message(update.message().from().id(), update.message().text());
-//            System.out.println("Forwarding message to Onebot: " + message);
             Sender sender = new Sender(update.message().from().id(), update.message().from().username(), update.message().from().firstName(), "unknown", 0, "虚拟地区", "0", "member", "");
             GroupMessage groupMessage = new GroupMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "group", "normal", update.message().messageId(), update.message().chat().id(), update.message().from().id(), null, realMessage, 0, sender, "array");
 
             JSONObject object = new JSONObject(groupMessage);
             object.set("message", "[{\"type\":\"text\",\"data\":{\"text\":\"" + realMessage + "\"}}]");
 
-            System.out.println("Forwarding message to Onebot: " + object);
 
             OneBotWebSocketHandler.broadcast(object.toString());
 

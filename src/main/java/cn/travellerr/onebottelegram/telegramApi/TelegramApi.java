@@ -6,11 +6,16 @@ import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.request.GetMe;
 import com.pengrad.telegrambot.response.GetMeResponse;
+import io.micrometer.common.util.StringUtils;
+import okhttp3.Credentials;
 import okhttp3.OkHttpClient;
 import org.springframework.stereotype.Component;
 
+import java.net.Authenticator;
 import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
 import java.net.Proxy;
+import java.nio.charset.StandardCharsets;
 
 import static cn.travellerr.onebottelegram.OnebotTelegramApplication.config;
 import static org.reflections.Reflections.log;
@@ -43,56 +48,37 @@ public class TelegramApi {
                 }
             };
 
-            OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder();
-            clientBuilder.proxy(new Proxy(proxyType, new InetSocketAddress(proxy.getHost(), proxy.getPort())));
+            OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder()
+                .hostnameVerifier(SSLSocketClient.getHostnameVerifier())
+                .sslSocketFactory(SSLSocketClient.getSSLSocketFactory(), SSLSocketClient.getX509TrustManager())
+                .proxy(new Proxy(proxyType, new InetSocketAddress(proxy.getHost(), proxy.getPort())));
 
- //          TODO SOCKS账密代理
-
- /*         clientBuilder.hostnameVerifier(SSLSocketClient.getHostnameVerifier());
-            clientBuilder.sslSocketFactory(SSLSocketClient.getSSLSocketFactory(), SSLSocketClient.getX509TrustManager());
-            clientBuilder.proxy(new Proxy(proxyType, new InetSocketAddress(proxy.getHost(), proxy.getPort())));
-            clientBuilder.dns(Dns.SYSTEM);
-
-            if (StringUtils.isNotEmpty(proxy.getUsername()) && StringUtils.isNotEmpty(proxy.getSecret()) && proxyType.equals(Proxy.Type.SOCKS)) {
+            if (StringUtils.isNotEmpty(proxy.getUsername()) && StringUtils.isNotEmpty(proxy.getSecret())) {
                 clientBuilder.proxyAuthenticator((route, response) -> {
                     String credential = Credentials.basic(proxy.getUsername().strip(), proxy.getSecret().strip(), StandardCharsets.UTF_8);
-                    return response.request().newBuilder().header("Authorization", credential).build();
+                    return response.request().newBuilder().header("Proxy-Authorization", credential).build();
                 });
 
-                 // 配置认证（需全局设置）
                 Authenticator.setDefault(new Authenticator() {
                     @Override
                     protected PasswordAuthentication getPasswordAuthentication() {
-                        if (getRequestorType() == RequestorType.PROXY) {
-                            return new PasswordAuthentication(
-                                    proxy.getUsername().strip(),
-                                    proxy.getSecret().strip().toCharArray()
-                            );
-                        }
-                        return null;
+                        return new PasswordAuthentication(proxy.getUsername().strip(), proxy.getSecret().strip().toCharArray());
                     }
                 });
 
-                System.setProperty("java.net.socks.username", proxy.getUsername());
-
-                System.setProperty("java.net.socks.password", proxy.getSecret());
-
-
-                System.out.println("代理已启用: " + proxy.getHost() + ":" + proxy.getPort());
-            }*/
-
+                log.info("代理已启用: " + proxy.getHost() + ":" + proxy.getPort());
+            }
 
             bot = new TelegramBot.Builder(token).okHttpClient(clientBuilder.build()).build();
         } else {
             bot = new TelegramBot.Builder(token).okHttpClient(new OkHttpClient.Builder().hostnameVerifier((hostname, session) -> true).build()).build();
         }
 
-        System.out.println(token);
-        System.out.println("Telegram bot 开始运行: " + username);
+        log.info("Telegram bot 开始运行: " + username);
 
         getMeResponse = bot.execute(new GetMe());
 
-        System.out.println("Telegram bot 信息: " + getMeResponse);
+        log.info("Telegram bot 信息: " + getMeResponse);
 
         bot.setUpdatesListener(updates -> {
             new Thread(() -> updates.forEach(update -> {
