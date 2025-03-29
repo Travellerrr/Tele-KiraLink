@@ -40,10 +40,41 @@ data class GroupMessage(
     val font: Int,
 
     @SerialName("sender")
+    val sender: Sender? = null
+)
+
+@Serializable
+data class PrivateMessage(
+    @SerialName("time")
+    val time: Long,
+
+    @SerialName("self_id")
+    val self_id: Long,
+
+    @SerialName("post_type")
+    val post_type: String,
+
+    @SerialName("message_type")
+    val message_type: String,
+
+    @SerialName("sub_type")
+    val sub_type: String,
+
+    @SerialName("message_id")
+    val message_id: Int,
+
+    @SerialName("user_id")
+    val user_id: Long,
+
+    @SerialName("raw_message")
+    val raw_message: String,
+
+    @SerialName("font")
+    val font: Int,
+
+    @SerialName("sender")
     val sender: Sender? = null,
 
-    @SerialName("message_format")
-    val message_format: String
 )
 
 @Serializable

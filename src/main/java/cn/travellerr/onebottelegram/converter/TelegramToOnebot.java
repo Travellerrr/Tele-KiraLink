@@ -1,8 +1,10 @@
 package cn.travellerr.onebottelegram.converter;
 
 import cn.chahuyun.hibernateplus.HibernateFactory;
+import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.travellerr.onebotApi.GroupMessage;
+import cn.travellerr.onebotApi.PrivateMessage;
 import cn.travellerr.onebotApi.Sender;
 import cn.travellerr.onebottelegram.OnebotTelegramApplication;
 import cn.travellerr.onebottelegram.hibernate.HibernateUtil;
@@ -16,6 +18,8 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
+import static org.reflections.Reflections.log;
+
 @Component
 public class TelegramToOnebot implements ApplicationRunner {
     @Override
@@ -27,6 +31,16 @@ public class TelegramToOnebot implements ApplicationRunner {
 
     public static void forwardToOnebot(Update update) {
         if (update.message() != null&&update.message().text() != null) {
+
+            // 截取"@"前消息
+            String realMessage = update.message().text().replace("@"+TelegramApi.getMeResponse.user().username(), "").trim();
+
+            String username = update.message().from().username();
+            if (username == null) {
+                username = update.message().from().firstName();
+            }
+
+            JSONObject object;
 
             if (update.message().chat().type().equals(Chat.Type.group) || update.message().chat().type().equals(Chat.Type.supergroup)) {
                 Group group = null;
@@ -48,18 +62,23 @@ public class TelegramToOnebot implements ApplicationRunner {
 
                 group.addMember(update.message().from().id());
                 HibernateFactory.merge(group);
+
+                Sender groupSender = new Sender(update.message().from().id(), username, update.message().from().firstName(), "unknown", 0, "虚拟地区", "0", "member", "");
+                GroupMessage groupMessage = new GroupMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "group", "normal", update.message().messageId(), -update.message().chat().id(), update.message().from().id(), null, realMessage, 0, groupSender);
+
+                object = new JSONObject(groupMessage);
+            } else {
+                Sender sender = new Sender(update.message().from().id(), username, update.message().from().firstName(), "unknown", 0, null, null, null, null);
+                log.error("sender: " + sender);
+                PrivateMessage message = new PrivateMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "private", "friend", update.message().messageId(), update.message().from().id(), realMessage, 0, sender);
+                object = new JSONObject(message);
             }
 
-            // 截取"@"前消息
-            String realMessage = update.message().text().replace("@"+TelegramApi.getMeResponse.user().username(), "").trim();
 
+            JSONArray message = new JSONArray().set(new JSONObject().set("type", "text").set("data", new JSONObject().set("text", realMessage)));
+            object.set("message", message);
 
-            Sender sender = new Sender(update.message().from().id(), update.message().from().username(), update.message().from().firstName(), "unknown", 0, "虚拟地区", "0", "member", "");
-            GroupMessage groupMessage = new GroupMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "group", "normal", update.message().messageId(), update.message().chat().id(), update.message().from().id(), null, realMessage, 0, sender, "array");
-
-            JSONObject object = new JSONObject(groupMessage);
-            object.set("message", "[{\"type\":\"text\",\"data\":{\"text\":\"" + realMessage + "\"}}]");
-
+            log.info("转发消息到 OneBot: {}", object);
 
             OneBotWebSocketHandler.broadcast(object.toString());
 

@@ -132,7 +132,7 @@ data class MemberInfo (
 }
 
 @Serializable
-data class Sender(
+data class Sender (
     @SerialName("user_id")
     val user_id: Long,
 
@@ -140,7 +140,7 @@ data class Sender(
     val nickname: String,
 
     @SerialName("card")
-    val card: String,
+    val card: String? = null,
 
     @SerialName("sex")
     val sex: String,
@@ -149,21 +149,26 @@ data class Sender(
     val age: Int,
 
     @SerialName("area")
-    val area: String,
+    val area: String? = null,
 
     @SerialName("level")
-    val level: String,
+    val level: String? = null,
 
     @SerialName("role")
-    val role: String,
+    val role: String? = null,
 
     @SerialName("title")
-    val title: String
+    val title: String? = null
 )  {
+
     companion object {
         fun parse(json: String): Sender {
             return Json.decodeFromString(serializer(), json)
         }
+    }
+
+    override fun toString(): String {
+        return Json.encodeToString(serializer(), this)
     }
 }
 
