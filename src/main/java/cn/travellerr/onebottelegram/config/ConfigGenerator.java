@@ -3,6 +3,7 @@ package cn.travellerr.onebottelegram.config;
 import cn.chahuyun.hibernateplus.DriveType;
 import org.yaml.snakeyaml.DumperOptions;
 import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.nodes.Tag;
 import org.yaml.snakeyaml.representer.Representer;
 
 import java.io.IOException;
@@ -113,7 +114,7 @@ public class ConfigGenerator {
                                 .build())
                         .database(Config.spring.database.builder()
                                 .dataType(DriveType.MYSQL)
-                                .mysqlUrl("jdbc:mysql://localhost:3306/onebot_telegram?useSSL=false&serverTimezone=Asia/Shanghai")
+                                .mysqlUrl("jdbc:mysql://localhost:3306")
                                 .mysqlUser("root")
                                 .mysqlPassword("root")
                                 .build())
@@ -152,6 +153,7 @@ public class ConfigGenerator {
 
         Representer representer = new Representer(options);
         representer.getPropertyUtils().setSkipMissingProperties(true);
+        representer.addClassTag(Config.class, Tag.MAP);
 
         return new Yaml(representer, options);
     }
