@@ -72,6 +72,9 @@ telegram:
 
 ### 实现
 
+> [!TIP]
+> 下列表格中的✅表示已实现,❌表示未实现,✅❓表示已实现但未测试
+
 <details>
 <summary>已实现 API</summary>
 
