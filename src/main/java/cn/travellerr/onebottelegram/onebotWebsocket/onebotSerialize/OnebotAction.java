@@ -8,10 +8,8 @@ import cn.travellerr.onebottelegram.hibernate.entity.Group;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
 import com.pengrad.telegrambot.model.ChatMember;
 import com.pengrad.telegrambot.model.request.ReplyParameters;
-import com.pengrad.telegrambot.request.GetChat;
-import com.pengrad.telegrambot.request.GetChatMember;
 import com.pengrad.telegrambot.request.SendMessage;
-import com.pengrad.telegrambot.request.SendPhoto;
+import com.pengrad.telegrambot.request.*;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -30,50 +28,73 @@ public class OnebotAction {
         String action = jsonObject.getStr("action");
         int echo = jsonObject.getInt("echo");
         try {
-            switch (action) {
-                case "get_version_info":
-                    session.sendMessage(message(echo, new GetVersionInfo("TelegramAdapter", "1.0.0", "v11")));
-                    break;
-                case "get_login_info":
-                    session.sendMessage(message(echo, new GetLoginInfo(TelegramApi.getMeResponse.user().id(), TelegramApi.getMeResponse.user().username())));
-                    break;
-                case "get_friend_list":
-                    session.sendMessage(getFriendList(echo));
-                    break;
-                case "get_group_list":
-                    session.sendMessage(getGroupList(echo));
-                    break;
-                case "get_group_member_list":
-                    long groupId = -jsonObject.getJSONObject("params").getLong("group_id");
+        long groupId, userId;
+        String message, title, groupName;
+        JSONObject params = jsonObject.getJSONObject("params");
 
-                    session.sendMessage(getGroupMemberList(echo, groupId));
-                    break;
-                case "get_group_member_info":
-                    long groupId1 = -jsonObject.getJSONObject("params").getLong("group_id");
-                    long memberId = jsonObject.getJSONObject("params").getLong("user_id");
-                    session.sendMessage(getGroupMemberInfo(echo, groupId1, memberId));
-                    break;
-                case "send_group_msg":
-                    long groupId2 = -jsonObject.getJSONObject("params").getLong("group_id");
-                    String message = jsonObject.getJSONObject("params").getStr("message");
-                    session.sendMessage(sendMessage(echo, groupId2, message, true));
-                    break;
-                case "send_private_msg":
-                    long userId1 = jsonObject.getJSONObject("params").getLong("user_id");
-                    String message1 = jsonObject.getJSONObject("params").getStr("message");
-                    session.sendMessage(sendMessage(echo, userId1, message1, false));
-                    break;
-                case "get_avatar":
-                    long userId = jsonObject.getJSONObject("params").getLong("user_id");
-                    JSONObject obj = new JSONObject().set("echo", echo).set("message", "https://avatars.githubusercontent.com/u/139743802?v=4&size=256").set("retcode", 0).set("user_id", userId);
-                    session.sendMessage(new TextMessage(obj.toString()));
-                    break;
-                default:
-                    log.error("未知的 OneBot 消息: {}", action);
-                    session.sendMessage(new TextMessage(new JSONObject(new Data(echo, "", 0, "failed", "")).set("data", new JSONObject().set("error_code", "unknown_action")).toString()));
-
-
-            }
+        switch (action) {
+            case "get_version_info":
+                session.sendMessage(message(echo, new GetVersionInfo("TelegramAdapter", "1.0.0", "v11")));
+                break;
+            case "get_login_info":
+                session.sendMessage(message(echo, new GetLoginInfo(TelegramApi.getMeResponse.user().id(), TelegramApi.getMeResponse.user().username())));
+                break;
+            case "get_friend_list":
+                session.sendMessage(getFriendList(echo));
+                break;
+            case "get_group_list":
+                session.sendMessage(getGroupList(echo));
+                break;
+            case "get_group_member_list":
+                groupId = -params.getLong("group_id");
+                session.sendMessage(getGroupMemberList(echo, groupId));
+                break;
+            case "get_group_member_info":
+                groupId = -params.getLong("group_id");
+                userId = params.getLong("user_id");
+                session.sendMessage(getGroupMemberInfo(echo, groupId, userId));
+                break;
+            case "send_group_msg":
+                groupId = -params.getLong("group_id");
+                message = params.getStr("message");
+                session.sendMessage(sendMessage(echo, groupId, message, true));
+                break;
+            case "send_private_msg":
+                userId = params.getLong("user_id");
+                message = params.getStr("message");
+                session.sendMessage(sendMessage(echo, userId, message, false));
+                break;
+            case "set_group_special_title":
+                groupId = -params.getLong("group_id");
+                userId = params.getLong("user_id");
+                title = params.getStr("special_title");
+                TelegramApi.bot.execute(new PromoteChatMember(groupId, userId).canChangeInfo(false).canDeleteMessages(false).canInviteUsers(false).canRestrictMembers(false).canPinMessages(false).canPromoteMembers(false));
+                TelegramApi.bot.execute(new SetChatAdministratorCustomTitle(groupId, userId, title));
+                break;
+            case "set_group_name":
+                groupId = -params.getLong("group_id");
+                groupName = params.getStr("group_name");
+                TelegramApi.bot.execute(new SetChatTitle(groupId, groupName));
+                break;
+            case "set_group_kick":
+                groupId = -params.getLong("group_id");
+                userId = params.getLong("user_id");
+                TelegramApi.bot.execute(new BanChatMember(groupId, userId).untilDate(0));
+                break;
+            case "set_group_admin":
+                groupId = -params.getLong("group_id");
+                userId = params.getLong("user_id");
+                TelegramApi.bot.execute(new PromoteChatMember(groupId, userId).canChangeInfo(false).canDeleteMessages(false).canInviteUsers(false).canRestrictMembers(false).canPinMessages(false).canPromoteMembers(false));
+                break;
+            case "get_avatar":
+                userId = params.getLong("user_id");
+                JSONObject obj = new JSONObject().set("echo", echo).set("message", "https://avatars.githubusercontent.com/u/139743802?v=4&size=256").set("retcode", 0).set("user_id", userId);
+                session.sendMessage(new TextMessage(obj.toString()));
+                break;
+            default:
+                log.error("未知的 OneBot 消息: {}", action);
+                session.sendMessage(new TextMessage(new JSONObject(new Data(echo, "", 0, "failed", "")).set("data", new JSONObject().set("error_code", "unknown_action")).toString()));
+        }
         } catch (Exception e) {
             log.error("处理 OneBot 消息失败", e);
         }
@@ -235,11 +256,8 @@ public class OnebotAction {
         }
     }
 
-/*    private static TextMessage getAvatar(long userId) {
-        UserProfilePhotos photos = TelegramApi.bot.execute(new GetUserProfilePhotos(userId)).photos();
 
-        String fileId = photos.photos()[0][0].fileId();
-    }*/
+
 
     private static MemberInfo getChatMember(long groupId, long memberId) {
         ChatMember chat = TelegramApi.bot.execute(new GetChatMember(groupId, memberId)).chatMember();
@@ -250,6 +268,7 @@ public class OnebotAction {
         }
         return new MemberInfo(-groupId, memberId, username, chat.user().firstName(), "unknown", 0, "虚拟地区", 0, 0, "0",levelConverter(String.valueOf(chat.status())),false , title,0 ,chat.canChangeInfo());
     }
+
 
     private static String levelConverter(String memberStatus) {
         return switch (memberStatus) {
