@@ -16,7 +16,7 @@ interface Group {
     val group_id: Long
     val group_name: String
     val member_count: Int
-    val maxMember_count: Int
+    val max_member_count: Int
 }
 
 interface Member {
@@ -67,7 +67,7 @@ data class GroupInfo (
     override val member_count: Int,
 
     @SerialName("max_member_count")
-    override val maxMember_count: Int
+    override val max_member_count: Int
 ) : OnebotSubClassApi, Group {
     companion object {
         fun parse(json: String): GroupInfo {

@@ -2,7 +2,6 @@ package cn.travellerr.onebotApi
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 
 interface OnebotResponseApi
 
@@ -109,7 +108,7 @@ data class GetGroupInfoResponse (
     override val member_count: Int,
 
     @SerialName("max_member_count")
-    override val maxMember_count: Int
+    override val max_member_count: Int
 ): OnebotResponseApi, Group {
     companion object {
         const val API = "/get_group_info"

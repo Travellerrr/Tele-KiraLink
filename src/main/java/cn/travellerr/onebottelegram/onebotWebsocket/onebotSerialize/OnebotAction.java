@@ -6,12 +6,14 @@ import cn.hutool.json.JSONObject;
 import cn.travellerr.onebotApi.*;
 import cn.travellerr.onebottelegram.hibernate.entity.Group;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
+import com.pengrad.telegrambot.model.ChatFullInfo;
 import com.pengrad.telegrambot.model.ChatMember;
 import com.pengrad.telegrambot.model.request.ReplyParameters;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.request.*;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.File;
@@ -48,6 +50,10 @@ public class OnebotAction {
             case "get_group_member_list":
                 groupId = -params.getLong("group_id");
                 session.sendMessage(getGroupMemberList(echo, groupId));
+                break;
+            case "get_group_info":
+                groupId = -params.getLong("group_id");
+                session.sendMessage(getGroupInfo(echo, groupId));
                 break;
             case "get_group_member_info":
                 groupId = -params.getLong("group_id");
@@ -98,6 +104,16 @@ public class OnebotAction {
         } catch (Exception e) {
             log.error("处理 OneBot 消息失败", e);
         }
+    }
+
+    private static WebSocketMessage<?> getGroupInfo(int echo, long groupId) {
+        ChatFullInfo info = TelegramApi.bot.execute(new GetChat(groupId)).chat();
+        int count = TelegramApi.bot.execute(new GetChatMemberCount(groupId)).count();
+        JSONObject object = new JSONObject(new Data(echo));
+        object.set("data", new GroupInfo(groupId, info.title(), count, 2000));
+        System.out.println(object);
+
+        return new TextMessage(object.toString());
     }
 
 

@@ -88,14 +88,19 @@ jobs:
           name: build-artifacts
           path: output
 
+      - name: Set tag name
+        id: set_tag_name
+        run: echo "::set-output name=tag_name::v$(echo output/Telegram-Onebot-Adapter-0.0.1-SNAPSHOT.jar | grep -oP '(?<=Adapter-)[^-]+')"
+
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          tag_name: ${{ steps.set_tag_name.outputs.tag_name }}
+          release_name: Telegram-OneBot-Adapter ${{ steps.set_tag_name.outputs.tag_name }}
           draft: true
 
       - name: Upload Release Assets
