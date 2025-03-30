@@ -4,6 +4,7 @@ import cn.chahuyun.hibernateplus.HibernateFactory;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.travellerr.onebotApi.*;
+import cn.travellerr.onebottelegram.OnebotTelegramApplication;
 import cn.travellerr.onebottelegram.hibernate.entity.Group;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
 import com.pengrad.telegrambot.model.ChatFullInfo;
@@ -36,7 +37,7 @@ public class OnebotAction {
 
         switch (action) {
             case "get_version_info":
-                session.sendMessage(message(echo, new GetVersionInfo("TelegramAdapter", "1.0.0", "v11")));
+                session.sendMessage(message(echo, new GetVersionInfo("TelegramAdapter", OnebotTelegramApplication.VERSION, "v11")));
                 break;
             case "get_login_info":
                 session.sendMessage(message(echo, new GetLoginInfo(TelegramApi.getMeResponse.user().id(), TelegramApi.getMeResponse.user().username())));
