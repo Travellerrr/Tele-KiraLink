@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,6 +28,14 @@ import static org.reflections.Reflections.log;
 
 @Component
 public class TelegramToOnebot implements ApplicationRunner {
+
+    public static final Map<Integer, Long> messageIdToChatId = new java.util.LinkedHashMap<>(1024, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Integer, Long> eldest) {
+            return size() > 512;
+        }
+    };
+
     @Override
     public void run(ApplicationArguments args) {
         System.out.println("Telegram to Onebot converter is running...");
@@ -36,6 +45,8 @@ public class TelegramToOnebot implements ApplicationRunner {
 
     public static void forwardToOnebot(Update update) {
         if (update.message() != null&&update.message().text() != null) {
+
+            messageIdToChatId.put(update.message().messageId(), Math.abs(update.message().chat().id()));
 
             // 截取"@"前消息
             String realMessage = update.message().text().replace("@"+TelegramApi.getMeResponse.user().username(), "").trim();

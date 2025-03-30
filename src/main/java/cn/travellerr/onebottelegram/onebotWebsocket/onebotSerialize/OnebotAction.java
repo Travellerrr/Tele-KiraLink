@@ -5,6 +5,7 @@ import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.travellerr.onebotApi.*;
 import cn.travellerr.onebottelegram.OnebotTelegramApplication;
+import cn.travellerr.onebottelegram.converter.TelegramToOnebot;
 import cn.travellerr.onebottelegram.hibernate.entity.Group;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
 import com.pengrad.telegrambot.model.ChatFullInfo;
@@ -32,6 +33,7 @@ public class OnebotAction {
         int echo = jsonObject.getInt("echo");
         try {
         long groupId, userId;
+        int msgId;
         String message, title, groupName;
         JSONObject params = jsonObject.getJSONObject("params");
 
@@ -60,6 +62,10 @@ public class OnebotAction {
                 groupId = -params.getLong("group_id");
                 userId = params.getLong("user_id");
                 session.sendMessage(getGroupMemberInfo(echo, groupId, userId));
+                break;
+            case "delete_msg":
+                msgId = params.getInt("message_id");
+                session.sendMessage(deleteMessage(echo, msgId));
                 break;
             case "send_group_msg":
                 groupId = -params.getLong("group_id");
@@ -124,6 +130,12 @@ public class OnebotAction {
         object.set("data", messages);
         System.out.println(object);
         return new TextMessage(object.toString());
+    }
+
+    private static TextMessage deleteMessage(int echo, int msgId) {
+        long chatId = -Math.abs(TelegramToOnebot.messageIdToChatId.get(msgId));
+        TelegramApi.bot.execute(new DeleteMessage(chatId, Math.toIntExact(msgId)));
+        return new TextMessage(new JSONObject(new Data(echo)).set("data", new JSONArray()).toString());
     }
 
     private static TextMessage getFriendList(int echo) {
@@ -263,6 +275,7 @@ public class OnebotAction {
             JSONObject obj = new JSONObject().set("error_code", response.description());
             return new TextMessage(new JSONObject(new Data(echo, "", 0, "failed", "")).set("data", obj).toString());
         } else {
+            TelegramToOnebot.messageIdToChatId.put(response.message().messageId(), Math.abs(chatId));
             JSONObject obj = new JSONObject().set("message_id", response.message().messageId());
             return new TextMessage(new JSONObject(new Data(echo, "", 0, "ok", "")).set("data", obj).toString());
         }
