@@ -9,6 +9,8 @@ import com.pengrad.telegrambot.response.GetMeResponse;
 import io.micrometer.common.util.StringUtils;
 import okhttp3.Credentials;
 import okhttp3.OkHttpClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.net.Authenticator;
@@ -18,7 +20,6 @@ import java.net.Proxy;
 import java.nio.charset.StandardCharsets;
 
 import static cn.travellerr.onebottelegram.OnebotTelegramApplication.config;
-import static org.reflections.Reflections.log;
 
 
 @Component
@@ -33,7 +34,50 @@ public class TelegramApi {
 
     public static TelegramBot bot;
 
+    private static final Logger log = LoggerFactory.getLogger(TelegramApi.class);
+
     public static void init() {
+
+        createBot();
+
+        log.info("Telegram bot 开始运行: " + username);
+
+        try {
+            getMeResponse = bot.execute(new GetMe());
+        } catch (Exception e) {
+            log.error("Telegram bot 信息获取失败: " + e.getMessage());
+            boolean flag = false;
+            for (int i = 1; i <= 5; i++) {
+                try {
+
+                    log.info("尝试重新获取 Telegram bot 信息: " + i + "/5");
+                    getMeResponse = bot.execute(new GetMe());
+                    flag = true;
+                    break;
+                } catch (Exception e1) {
+                    log.error("Telegram bot 信息获取失败: " + e1.getMessage());
+                }
+            }
+            if (flag) {
+                log.info("Telegram bot 信息获取成功");
+            } else {
+                log.error("Telegram bot 信息获取失败");
+                System.exit(-1);
+            }
+        }
+
+        log.info("Telegram bot 信息: " + getMeResponse);
+
+        bot.setUpdatesListener(updates -> {
+            new Thread(() -> updates.forEach(update -> {
+                System.out.println(update);
+                TelegramToOnebot.forwardToOnebot(update);
+            })).start();
+            return UpdatesListener.CONFIRMED_UPDATES_ALL;
+        }, Throwable::fillInStackTrace);
+    }
+
+    private static void createBot() {
         bot = new TelegramBot(token);
 
         Config.telegram.bot.proxy proxy = config.getTelegram().getBot().getProxy();
@@ -49,9 +93,9 @@ public class TelegramApi {
             };
 
             OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder()
-                .hostnameVerifier(SSLSocketClient.getHostnameVerifier())
-                .sslSocketFactory(SSLSocketClient.getSSLSocketFactory(), SSLSocketClient.getX509TrustManager())
-                .proxy(new Proxy(proxyType, new InetSocketAddress(proxy.getHost(), proxy.getPort())));
+                    .hostnameVerifier(SSLSocketClient.getHostnameVerifier())
+                    .sslSocketFactory(SSLSocketClient.getSSLSocketFactory(), SSLSocketClient.getX509TrustManager())
+                    .proxy(new Proxy(proxyType, new InetSocketAddress(proxy.getHost(), proxy.getPort())));
 
             if (StringUtils.isNotEmpty(proxy.getUsername()) && StringUtils.isNotEmpty(proxy.getSecret())) {
                 clientBuilder.proxyAuthenticator((route, response) -> {
@@ -73,28 +117,7 @@ public class TelegramApi {
         } else {
             bot = new TelegramBot.Builder(token).okHttpClient(new OkHttpClient.Builder().hostnameVerifier((hostname, session) -> true).build()).build();
         }
-
-        log.info("Telegram bot 开始运行: " + username);
-
-        try {
-            getMeResponse = bot.execute(new GetMe());
-        } catch (Exception e) {
-            log.error("Telegram bot 信息获取失败: " + e.getMessage());
-            System.exit(0);
-            return;
-        }
-
-        log.info("Telegram bot 信息: " + getMeResponse);
-
-        bot.setUpdatesListener(updates -> {
-            new Thread(() -> updates.forEach(update -> {
-                System.out.println(update);
-                TelegramToOnebot.forwardToOnebot(update);
-            })).start();
-            return UpdatesListener.CONFIRMED_UPDATES_ALL;
-        }, Throwable::fillInStackTrace);
     }
-
 
 
 }

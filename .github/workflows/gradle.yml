@@ -90,7 +90,7 @@ jobs:
 
       - name: Set tag name
         id: set_tag_name
-        run: echo "::set-output name=tag_name::v$(echo output/Telegram-Onebot-Adapter-0.0.1-SNAPSHOT.jar | grep -oP '(?<=Adapter-)[^-]+')"
+        run: echo "::set-output name=tag_name::v$(ls output/Telegram-Onebot-Adapter-*.jar | grep -v 'plain' | grep -oP '(?<=Adapter-)[^-]+')"
 
 
       - name: Create Release
