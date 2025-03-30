@@ -182,11 +182,6 @@ public class OnebotAction {
 
     private static TextMessage getGroupMemberInfo(int echo, long groupId, long memberId) {
         JSONObject object = new JSONObject(new Data(echo));
-        Group group = HibernateFactory.selectOne(Group.class, groupId);
-        if (group == null) {
-            object.set("data", new JSONObject(new GetGroupMemberListResponse(List.of())));
-            return new TextMessage(object.toString());
-        }
 
         getChatMember(groupId, memberId);
         MemberInfo memberInfo = getChatMember(groupId, memberId);
@@ -275,7 +270,7 @@ public class OnebotAction {
 
 
 
-    private static MemberInfo getChatMember(long groupId, long memberId) {
+    public static MemberInfo getChatMember(long groupId, long memberId) {
         ChatMember chat = TelegramApi.bot.execute(new GetChatMember(groupId, memberId)).chatMember();
         String title = "";
         String username = chat.user().username();

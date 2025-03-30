@@ -18,6 +18,11 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import static org.reflections.Reflections.log;
 
 @Component
@@ -42,6 +47,9 @@ public class TelegramToOnebot implements ApplicationRunner {
 
             JSONObject object;
 
+
+            JSONArray message = new JSONArray().set(new JSONObject().set("type", "text").set("data", new JSONObject().set("text", realMessage)));
+
             if (update.message().chat().type().equals(Chat.Type.group) || update.message().chat().type().equals(Chat.Type.supergroup)) {
                 Group group = null;
 
@@ -60,8 +68,50 @@ public class TelegramToOnebot implements ApplicationRunner {
                     HibernateFactory.merge(group);
                 }
 
-                group.addMember(update.message().from().id());
+                group.addMemberId(update.message().from().id());
+                group.addMemberUsernames(username);
                 HibernateFactory.merge(group);
+
+                if (realMessage.contains("@")) {
+                    List<Long> atList = new ArrayList<>();
+                    List<String> messageList = new ArrayList<>();
+                    Matcher matcher = Pattern.compile("@(\\S+?)(\\s|$)").matcher(realMessage);
+
+                    List<Long> membersIdList = group.getMembersIdList();
+                    List<String> memberUsernameList = group.getMemberUsernamesList();
+
+
+                    int lastIndex = 0;
+                    while (matcher.find()) {
+                        int index = memberUsernameList.indexOf(matcher.group(1));
+                        if (index != -1) {
+                            atList.add(membersIdList.get(index));
+                            String msg = realMessage.substring(lastIndex, matcher.start()).trim();
+                            if (!messageList.isEmpty()) {
+                                msg = " " + msg;
+                            }
+                            messageList.add(msg);
+                            lastIndex = matcher.end();
+                        }
+                        messageList.add(" "+realMessage.substring(lastIndex).trim());
+                    }
+
+                    message = new JSONArray();
+                    for (int i = 0; i < messageList.size(); i++) {
+                        JSONObject messageObject = new JSONObject().set("type", "text").set("data", new JSONObject().set("text", messageList.get(i)));
+
+                        message.add(messageObject);
+                        if (i < atList.size()) {
+                            JSONObject atObject = new JSONObject().set("type", "at").set("data", new JSONObject().set("qq", atList.get(i)));
+                            message.add(atObject);
+                        }
+
+
+                    }
+
+                    System.out.println("message: " + message);
+
+                }
 
                 Sender groupSender = new Sender(update.message().from().id(), username, update.message().from().firstName(), "unknown", 0, "虚拟地区", "0", "member", "");
                 GroupMessage groupMessage = new GroupMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "group", "normal", update.message().messageId(), -update.message().chat().id(), update.message().from().id(), null, realMessage, 0, groupSender);
@@ -70,12 +120,11 @@ public class TelegramToOnebot implements ApplicationRunner {
             } else {
                 Sender sender = new Sender(update.message().from().id(), username, update.message().from().firstName(), "unknown", 0, null, null, null, null);
                 log.error("sender: " + sender);
-                PrivateMessage message = new PrivateMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "private", "friend", update.message().messageId(), update.message().from().id(), realMessage, 0, sender);
-                object = new JSONObject(message);
+                PrivateMessage privateMessage = new PrivateMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "private", "friend", update.message().messageId(), update.message().from().id(), realMessage, 0, sender);
+                object = new JSONObject(privateMessage);
             }
 
 
-            JSONArray message = new JSONArray().set(new JSONObject().set("type", "text").set("data", new JSONObject().set("text", realMessage)));
             object.set("message", message);
 
             log.info("转发消息到 OneBot: {}", object);

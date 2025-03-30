@@ -76,7 +76,13 @@ public class TelegramApi {
 
         log.info("Telegram bot 开始运行: " + username);
 
-        getMeResponse = bot.execute(new GetMe());
+        try {
+            getMeResponse = bot.execute(new GetMe());
+        } catch (Exception e) {
+            log.error("Telegram bot 信息获取失败: " + e.getMessage());
+            System.exit(0);
+            return;
+        }
 
         log.info("Telegram bot 信息: " + getMeResponse);
 

@@ -2,16 +2,14 @@ package cn.travellerr.onebottelegram.hibernate.entity;
 
 import cn.chahuyun.hibernateplus.HibernateFactory;
 import cn.hutool.core.util.StrUtil;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,10 +32,17 @@ public class Group {
     @Builder.Default
     private int maxMemberCount = 2000;
 
+    @Column(length = 4096)
     private String memberIds;
+
+    @Column(length = 4096)
+    private String memberUserNames;
 
     @Transient
     private List<Long> membersIdList;
+
+    @Transient
+    private List<String> membersUserNameList;
 
 
 
@@ -48,6 +53,8 @@ public class Group {
             for (String s : memberIds.split(",")) {
                 membersIdList.add(Long.parseLong(s));
             }
+        } else {
+            membersIdList = new ArrayList<>();
         }
         return membersIdList;
     }
@@ -59,8 +66,11 @@ public class Group {
                 .collect(Collectors.joining(","));
     }
 
-    public void addMember(Long member) {
+    public void addMemberId(Long member) {
         this.membersIdList = getMembersIdList();
+        if (membersIdList!= null && membersIdList.contains(member)) {
+            return;
+        }
         membersIdList.add(member);
         this.memberIds = membersIdList.stream()
                 .map(Object::toString)
@@ -69,7 +79,7 @@ public class Group {
         HibernateFactory.merge(this);
     }
 
-    public void removeMember(Long member) {
+    public void removeMemberId(Long member) {
         this.membersIdList = getMembersIdList();
         membersIdList.remove(member);
         this.memberIds = membersIdList.stream()
@@ -77,4 +87,43 @@ public class Group {
                 .collect(Collectors.joining(","));
     }
 
+
+    public List<String> getMemberUsernamesList() {
+        this.membersUserNameList = new ArrayList<>();
+        if (StrUtil.isNotBlank(memberUserNames)) {
+            membersUserNameList.addAll(Arrays.asList(memberUserNames.split(",")));
+        } else {
+            membersUserNameList = new ArrayList<>();
+        }
+        return membersUserNameList;
+    }
+
+    public void setMemberUsernames(List<String> membersUserNameList) {
+        this.membersUserNameList = membersUserNameList;
+        this.memberUserNames = membersUserNameList.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(","));
+    }
+
+    public void addMemberUsernames(String member) {
+        this.membersUserNameList = getMemberUsernamesList();
+        if (membersUserNameList!= null && membersUserNameList.contains(member)) {
+            return;
+        }
+        membersUserNameList.add(member);
+        System.out.println("new member was found: " + member);
+        this.memberUserNames = membersUserNameList.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(","));
+
+        HibernateFactory.merge(this);
+    }
+
+    public void removeMemberUsernames(String member) {
+        this.membersUserNameList = getMemberUsernamesList();
+        membersUserNameList.remove(member);
+        this.memberUserNames = membersUserNameList.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(","));
+    }
 }
