@@ -6,13 +6,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @ConfigEntity(name = "config", filePath = "./")
-public class Config {
+public class Config implements Serializable {
 
     private telegram telegram;
     private onebot onebot;
@@ -23,7 +25,7 @@ public class Config {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class telegram {
+    public static class telegram implements Serializable {
 
         private Config.telegram.bot bot;
 
@@ -31,7 +33,7 @@ public class Config {
         @Builder
         @AllArgsConstructor
         @NoArgsConstructor
-        public static class bot {
+        public static class bot implements Serializable {
             private String token;
             private String username;
             private Config.telegram.bot.proxy proxy;
@@ -40,7 +42,7 @@ public class Config {
             @Builder
             @AllArgsConstructor
             @NoArgsConstructor
-            public static class proxy {
+            public static class proxy implements Serializable {
                 private String host;
                 private int port;
                 private String username;
@@ -56,17 +58,18 @@ public class Config {
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class onebot {
+    public static class onebot implements Serializable {
             public String ip;
             public String path;
             public int port;
+            public boolean useArray;
     }
 
     @Data
     @Builder
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class spring {
+    public static class spring implements Serializable {
         private Config.spring.jackson jackson;
         private Config.spring.database database;
 
@@ -74,7 +77,7 @@ public class Config {
         @Builder
         @AllArgsConstructor
         @NoArgsConstructor
-        public static class jackson {
+        public static class jackson implements Serializable {
             private String dateformat;
             private String timezone;
         }
@@ -83,7 +86,7 @@ public class Config {
         @Builder
         @AllArgsConstructor
         @NoArgsConstructor
-        public static class database {
+        public static class database implements Serializable {
             private DriveType dataType;
             private String mysqlUrl;
             private String mysqlUser;
