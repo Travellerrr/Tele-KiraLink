@@ -18,7 +18,7 @@ public class OnebotTelegramApplication {
 
     public static OnebotTelegramApplication INSTANCE = new OnebotTelegramApplication();
 
-    public static final String VERSION = "0.0.2";
+    public static final String VERSION = "0.0.3";
 
     public static Config config;
 
