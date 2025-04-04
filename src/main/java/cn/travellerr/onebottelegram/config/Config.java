@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.Map;
 
 
 @Data
@@ -19,6 +20,7 @@ public class Config implements Serializable {
     private telegram telegram;
     private onebot onebot;
     private spring spring;
+    private command command;
 
 
     @Data
@@ -28,6 +30,7 @@ public class Config implements Serializable {
     public static class telegram implements Serializable {
 
         private Config.telegram.bot bot;
+//        private Config.telegram.webhook webhook;
 
         @Data
         @Builder
@@ -52,6 +55,16 @@ public class Config implements Serializable {
 
 
         }
+
+/*        @Data
+        @Builder
+        @AllArgsConstructor
+        @NoArgsConstructor
+        public static class webhook implements Serializable {
+            private String certPath;
+            private String secretPath;
+            private boolean useWebhook;
+        }*/
     }
 
     @Data
@@ -59,10 +72,10 @@ public class Config implements Serializable {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class onebot implements Serializable {
-            public String ip;
-            public String path;
-            public int port;
-            public boolean useArray;
+            private String ip;
+            private String path;
+            private int port;
+            private boolean useArray;
     }
 
     @Data
@@ -92,5 +105,14 @@ public class Config implements Serializable {
             private String mysqlUser;
             private String mysqlPassword;
         }
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class command implements Serializable {
+        private String prefix;
+        private Map<String, String> commandMap;
     }
 }

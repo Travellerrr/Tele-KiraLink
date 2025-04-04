@@ -190,3 +190,18 @@ data class Anonymous(
         }
     }
 }
+
+@Serializable
+data class TextData(
+    val text: String
+)
+
+@Serializable
+data class AtData(
+    val qq: Long,
+)
+
+@Serializable
+data class File(
+    val file: String
+)

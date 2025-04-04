@@ -8,7 +8,7 @@ import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
 
-import static cn.travellerr.onebottelegram.OnebotTelegramApplication.config;
+import static cn.travellerr.onebottelegram.TelegramOnebotAdapter.config;
 
 @Configuration
 @EnableWebSocket
@@ -19,7 +19,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(handler, config.getOnebot().path)
+        registry.addHandler(handler, config.getOnebot().getPath())
                 .setAllowedOrigins("*");
     }
 

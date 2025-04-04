@@ -98,3 +98,32 @@ data class Data(
         return Json.encodeToString(serializer(), this)
     }
 }
+
+
+interface ArrayMessage{
+    val type: String
+}
+
+@Serializable
+data class Text(
+    override val type: String = "text",
+    val data: TextData
+) : ArrayMessage {
+    constructor(text: String) : this("text", TextData(text))
+}
+
+@Serializable
+data class At(
+    override val type: String = "at",
+    val data: AtData
+) : ArrayMessage {
+    constructor(userId: Long) : this("at", AtData(userId))
+}
+
+@Serializable
+data class Image(
+    override val type: String = "image",
+    val data: File
+) : ArrayMessage {
+    constructor(file: String) : this("image", File(file))
+}

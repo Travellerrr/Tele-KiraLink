@@ -7,9 +7,12 @@ import org.yaml.snakeyaml.nodes.Tag;
 import org.yaml.snakeyaml.representer.Representer;
 
 import java.io.*;
-import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.reflections.Reflections.log;
 
@@ -37,7 +40,7 @@ public class ConfigGenerator {
                 log.info("更新的配置文件");
                 return mergedConfig;
             } else {
-                log.info("配置文件无更改");
+                log.info("配置文件加载成功");
                 return existingConfig;
             }
         } catch (Exception e) {
@@ -57,27 +60,72 @@ public class ConfigGenerator {
         }
     }
 
-    private static Config mergeConfigs(Config source, Config target) throws Exception {
-        mergeObjects(source, target);
-        return target;
+    private static Config mergeConfigs(Config defaultConfig, Config existingConfig) {
+        // 将配置对象转换为Map结构
+        Map<String, Object> defaultMap = convertToMap(defaultConfig);
+        Map<String, Object> existingMap = convertToMap(existingConfig);
+
+        // 递归合并Map
+        Map<String, Object> mergedMap = mergeMaps(defaultMap, existingMap);
+
+        // 将合并后的Map转回Config对象
+        return createYaml().loadAs(createYaml().dump(mergedMap), Config.class);
     }
 
-    private static void mergeObjects(Object source, Object target) throws Exception {
-        for (Field field : source.getClass().getDeclaredFields()) {
-            field.setAccessible(true);
-            Object sourceValue = field.get(source);
-            Object targetValue = field.get(target);
+    /**
+     * 将Config对象转为可修改的Map（解决不可变集合问题）
+     */
+    private static Map<String, Object> convertToMap(Object obj) {
+        Yaml yaml = new Yaml();
+        String yamlStr = yaml.dumpAsMap(obj);
+        return yaml.load(yamlStr);
+    }
 
-            if (targetValue == null) {
-                field.set(target, sourceValue);
-            } else if (isComplexType(field.getType())) {
-                mergeObjects(sourceValue, targetValue);
+    /**
+     * 递归合并两个Map结构
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mergeMaps(Map<String, Object> defaultMap, Map<String, Object> existingMap) {
+        Map<String, Object> result = new LinkedHashMap<>(existingMap);
+
+        defaultMap.forEach((key, defaultValue) -> {
+            Object existingValue = result.get(key);
+
+            if (existingValue == null) {
+                // 添加新字段
+                result.put(key, defaultValue);
+            } else if (defaultValue instanceof Map && existingValue instanceof Map) {
+                // 递归合并嵌套Map
+                result.put(key, mergeMaps(
+                        (Map<String, Object>) defaultValue,
+                        (Map<String, Object>) existingValue
+                ));
+            } else if (defaultValue instanceof List && existingValue instanceof List) {
+                // 合并List策略：保留现有元素，添加默认中不存在的新元素
+                List<Object> mergedList = mergeLists(
+                        (List<Object>) defaultValue,
+                        (List<Object>) existingValue
+                );
+                result.put(key, mergedList);
             }
-        }
+            // 其他类型保持现有值
+        });
+
+        return result;
     }
 
-    private static boolean isComplexType(Class<?> type) {
-        return !type.isPrimitive() && !type.equals(String.class) && !type.isEnum();
+    /**
+     * 合并List策略示例（根据需求调整）
+     */
+    private static List<Object> mergeLists(List<Object> defaultList, List<Object> existingList) {
+        List<Object> result = new ArrayList<>(existingList);
+
+        // 添加默认列表中不存在的新元素
+        defaultList.stream()
+                .filter(item -> !result.contains(item))
+                .forEach(result::add);
+
+        return result;
     }
 
     private static Config createDefaultConfig() {
@@ -92,7 +140,12 @@ public class ConfigGenerator {
                                         .secret("")
                                         .username("")
                                         .type("DIRECT")
-                                        .build()).build()).build())
+                                        .build()).build())
+/*                        .webhook(Config.telegram.webhook.builder()
+                                .certPath("")
+                                .secretPath("")
+                                .useWebhook(false)
+                                .build())*/.build())
                 .onebot(Config.onebot.builder()
                         .ip("0.0.0.0")
                         .path("/ws")
@@ -110,6 +163,10 @@ public class ConfigGenerator {
                                 .mysqlUser("root")
                                 .mysqlPassword("root")
                                 .build())
+                        .build())
+                .command(Config.command.builder()
+                        .prefix("/")
+                        .commandMap(Map.of("start", "开始", "help", "帮助"))
                         .build())
                 .build();
     }

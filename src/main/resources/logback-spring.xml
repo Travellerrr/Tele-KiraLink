@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+
+    <!-- 日志输出格式 -->
+    <property name="log.pattern" value="%d{HH:mm:ss.SSS} [%thread] %-5level %logger{20} - [%method,%line] - %msg%n" />
+
+    <!-- 控制台输出 -->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+
+        <encoder>
+            <pattern>%highlight(%d{yyyy-MM-dd HH:mm:ss} %.-1level %msg%n)</pattern>
+
+            <charset class="java.nio.charset.Charset">UTF-8</charset>
+        </encoder>
+
+    </appender>
+
+    <!-- 系统模块日志级别控制  -->
+    <logger name="cc.cyberline.message" level="info" />
+    <!-- Spring日志级别控制  -->
+    <logger name="org.springframework" level="warn" />
+
+    <root level="info">
+        <appender-ref ref="console" />
+    </root>
+
+
+</configuration>

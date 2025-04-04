@@ -19,7 +19,7 @@ import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.nio.charset.StandardCharsets;
 
-import static cn.travellerr.onebottelegram.OnebotTelegramApplication.config;
+import static cn.travellerr.onebottelegram.TelegramOnebotAdapter.config;
 
 
 @Component
@@ -67,6 +67,7 @@ public class TelegramApi {
         }
 
         log.info("Telegram bot 信息: " + getMeResponse);
+
 
         bot.setUpdatesListener(updates -> {
             new Thread(() -> updates.forEach(update -> {

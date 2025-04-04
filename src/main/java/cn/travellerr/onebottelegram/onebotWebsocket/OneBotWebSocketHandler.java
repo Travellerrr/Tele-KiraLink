@@ -39,7 +39,7 @@ public class OneBotWebSocketHandler extends TextWebSocketHandler {
     protected void handleTextMessage(@NotNull WebSocketSession session, TextMessage message) {
         try {
             JsonNode payload = objectMapper.readTree(message.getPayload());
-            log.info("收到 OneBot 消息: {}", payload);
+            log.info("TOA收到消息 <-- {}", payload);
 
             // 处理 OneBot 协议消息（示例：处理心跳）
             if (payload.has("meta_event_type") &&

@@ -3,10 +3,9 @@ package cn.travellerr.onebottelegram.hibernate;
 import cn.chahuyun.hibernateplus.Configuration;
 import cn.chahuyun.hibernateplus.DriveType;
 import cn.chahuyun.hibernateplus.HibernatePlusService;
-import cn.travellerr.onebottelegram.OnebotTelegramApplication;
+import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
 import cn.travellerr.onebottelegram.config.Config;
 
-import java.io.File;
 import java.nio.file.Path;
 
 public class HibernateUtil {
@@ -17,8 +16,8 @@ public class HibernateUtil {
      * @author Moyuyanli
      * @date 2022/7/30 23:04
      */
-    public static void init(OnebotTelegramApplication app) {
-        Config config = OnebotTelegramApplication.INSTANCE.config;
+    public static void init(TelegramOnebotAdapter app) {
+        Config config = TelegramOnebotAdapter.INSTANCE.config;
 
         Configuration configuration = HibernatePlusService.createConfiguration(app.getClass());
         configuration.setPackageName("cn.travellerr.onebottelegram.hibernate.entity");
