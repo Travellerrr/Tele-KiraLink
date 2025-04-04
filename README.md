@@ -1,6 +1,8 @@
 # Telegram-Onebot-Adapter
 
-基于 [OneBot](https://github.com/botuniverse/onebot/blob/main/README.md) 的 Telegram机器人Onebot v11 Java协议端
+![](https://img.shields.io/badge/OneBot-11-black?logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHAAAABwCAMAAADxPgR5AAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAAxQTFRF////29vbr6+vAAAAk1hCcwAAAAR0Uk5T////AEAqqfQAAAKcSURBVHja7NrbctswDATQXfD//zlpO7FlmwAWIOnOtNaTM5JwDMa8E+PNFz7g3waJ24fviyDPgfhz8fHP39cBcBL9KoJbQUxjA2iYqHL3FAnvzhL4GtVNUcoSZe6eSHizBcK5LL7dBr2AUZlev1ARRHCljzRALIEog6H3U6bCIyqIZdAT0eBuJYaGiJaHSjmkYIZd+qSGWAQnIaz2OArVnX6vrItQvbhZJtVGB5qX9wKqCMkb9W7aexfCO/rwQRBzsDIsYx4AOz0nhAtWu7bqkEQBO0Pr+Ftjt5fFCUEbm0Sbgdu8WSgJ5NgH2iu46R/o1UcBXJsFusWF/QUaz3RwJMEgngfaGGdSxJkE/Yg4lOBryBiMwvAhZrVMUUvwqU7F05b5WLaUIN4M4hRocQQRnEedgsn7TZB3UCpRrIJwQfqvGwsg18EnI2uSVNC8t+0QmMXogvbPg/xk+Mnw/6kW/rraUlvqgmFreAA09xW5t0AFlHrQZ3CsgvZm0FbHNKyBmheBKIF2cCA8A600aHPmFtRB1XvMsJAiza7LpPog0UJwccKdzw8rdf8MyN2ePYF896LC5hTzdZqxb6VNXInaupARLDNBWgI8spq4T0Qb5H4vWfPmHo8OyB1ito+AysNNz0oglj1U955sjUN9d41LnrX2D/u7eRwxyOaOpfyevCWbTgDEoilsOnu7zsKhjRCsnD/QzhdkYLBLXjiK4f3UWmcx2M7PO21CKVTH84638NTplt6JIQH0ZwCNuiWAfvuLhdrcOYPVO9eW3A67l7hZtgaY9GZo9AFc6cryjoeFBIWeU+npnk/nLE0OxCHL1eQsc1IciehjpJv5mqCsjeopaH6r15/MrxNnVhu7tmcslay2gO2Z1QfcfX0JMACG41/u0RrI9QAAAABJRU5ErkJggg==)
+
+基于 [OneBot](https://github.com/botuniverse/onebot/blob/main/README.md) 的 Telegram机器人Onebot v11 Java实现端
 
 ## 底层
 - [Java Telegram Bot API](https://github.com/pengrad/java-telegram-bot-api): Telegram Bot API的Java实现
@@ -34,10 +36,17 @@ Telegram适配器支持以下连接方式:
 下方的需配置 均为config.yml的配置项,配置项右侧有注释解释和格式例子
 
 ```yaml
+command:
+  commandMap:
+    start: 开始
+    help: 帮助
+    [Telegram发送内容]: [转发至Onebot内容]
+  prefix: [指令前缀 默认为"/"
 onebot:
   ip: 0.0.0.0
   path: [Onebot ws连接路径]
   port: [Onebot ws连接端口]
+  useArray: [是否启用Array消息 true/false]
 spring:
   database:
     dataType: [数据库类型, H2/SQLITE/MYSQL]
