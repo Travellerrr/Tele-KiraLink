@@ -11,16 +11,18 @@ import cn.travellerr.onebottelegram.onebotWebsocket.OneBotWebSocketHandler;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.Update;
+import com.pengrad.telegrambot.model.request.InlineKeyboardButton;
+import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup;
+import com.pengrad.telegrambot.model.request.ReplyParameters;
 import com.pengrad.telegrambot.request.GetChatMemberCount;
+import com.pengrad.telegrambot.request.SendMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,10 +46,28 @@ public class TelegramToOnebot implements ApplicationRunner {
 
             // 截取"@"前消息
             String realMessage = update.message().text().replace("@"+TelegramApi.getMeResponse.user().username(), "").trim();
+            long fromId = Math.abs(update.message().from().id());
 
             String username = update.message().from().username();
+
+            String firstName = update.message().from().firstName();
+
+
             if (username == null) {
                 username = update.message().from().firstName();
+            }
+
+            if (realMessage.toLowerCase(Locale.ROOT).equals("/toamenu")) {
+
+                log.info("内置菜单指令，已自动处理");
+
+                TelegramApi.bot.execute(
+                        new SendMessage(update.message().chat().id(), "菜单")
+                                .replyMarkup(buildMenuButtons())
+                                .replyParameters(new ReplyParameters(update.message().messageId(), update.message().chat().id()))
+                );
+
+                return;
             }
 
             JSONObject object;
@@ -60,6 +80,21 @@ public class TelegramToOnebot implements ApplicationRunner {
 
             if (update.message().chat().type().equals(Chat.Type.group) || update.message().chat().type().equals(Chat.Type.supergroup)) {
                 Group group = null;
+
+                if (!(update.message().senderChat() == null)) {
+                    if (TelegramOnebotAdapter.config.getOnebot().isBanGroupUser()) {
+                        log.info("根据配置设置，已打断群组身份发送消息的转发");
+                        if (!TelegramOnebotAdapter.config.getOnebot().getGroupUserWarning().isEmpty() && realMessage.startsWith(TelegramOnebotAdapter.config.getCommand().getPrefix())) {
+                            SendMessage sendMessage = new SendMessage(update.message().chat().id(), TelegramOnebotAdapter.config.getOnebot().getGroupUserWarning());
+                            sendMessage.replyParameters(new ReplyParameters(update.message().messageId(), update.message().chat().id()));
+                            TelegramApi.bot.execute(sendMessage);
+                        }
+                        return;
+                    }
+                    username = update.message().senderChat().username();
+                    fromId = Math.abs(update.message().senderChat().id());
+                    firstName = update.message().senderChat().firstName();
+                }
 
                 try {
                     group = HibernateFactory.selectOne(Group.class, update.message().chat().id());
@@ -76,7 +111,7 @@ public class TelegramToOnebot implements ApplicationRunner {
                     HibernateFactory.merge(group);
                 }
 
-                group.addMemberId(update.message().from().id());
+                group.addMemberId(fromId);
                 group.addMemberUsernames(username);
                 HibernateFactory.merge(group);
 
@@ -121,13 +156,13 @@ public class TelegramToOnebot implements ApplicationRunner {
 
                 }
 
-                Sender groupSender = new Sender(update.message().from().id(), username, update.message().from().firstName(), "unknown", 0, "虚拟地区", "0", "member", "");
-                GroupMessage groupMessage = new GroupMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "group", "normal", update.message().messageId(), -update.message().chat().id(), update.message().from().id(), null, realMessage, 0, groupSender);
+                Sender groupSender = new Sender(fromId, username, firstName, "unknown", 0, "虚拟地区", "0", "member", "");
+                GroupMessage groupMessage = new GroupMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "group", "normal", update.message().messageId(), -update.message().chat().id(), fromId, null, realMessage, 0, groupSender);
 
                 object = new JSONObject(groupMessage);
             } else {
-                Sender sender = new Sender(update.message().from().id(), username, update.message().from().firstName(), "unknown", 0, null, null, null, null);
-                PrivateMessage privateMessage = new PrivateMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "private", "friend", update.message().messageId(), update.message().from().id(), realMessage, 0, sender);
+                Sender sender = new Sender(fromId, username, firstName, "unknown", 0, null, null, null, null);
+                PrivateMessage privateMessage = new PrivateMessage(System.currentTimeMillis(), TelegramApi.getMeResponse.user().id(), "message", "private", "friend", update.message().messageId(), fromId, realMessage, 0, sender);
                 object = new JSONObject(privateMessage);
             }
 
@@ -145,6 +180,29 @@ public class TelegramToOnebot implements ApplicationRunner {
         }
     }
 
+    public static InlineKeyboardMarkup buildMenuButtons() {
+        Map<String, String> keyboardButtons = new LinkedHashMap<>(TelegramOnebotAdapter.config.getCommand().getMenu());
+
+        List<InlineKeyboardButton> buttons = keyboardButtons.entrySet().stream()
+            .map(entry -> {
+                InlineKeyboardButton button = new InlineKeyboardButton(entry.getKey());
+                if (entry.getValue().matches("^http(s)?://([\\w-]+\\.)+[\\w-]+(/[\\w- ./?%&=]*)?$")) {
+                    button.url(entry.getValue());
+                } else {
+                    button.callbackData(entry.getValue());
+                }
+                return button;
+            })
+            .toList();
+
+        InlineKeyboardButton[][] buttonArray = new InlineKeyboardButton[(keyboardButtons.size() + 2) / 3][];
+        for (int i = 0; i < buttonArray.length; i++) {
+            buttonArray[i] = buttons.subList(i * 3, Math.min((i + 1) * 3, keyboardButtons.size())).toArray(new InlineKeyboardButton[0]);
+        }
+
+        return new InlineKeyboardMarkup(buttonArray);
+    }
+
     private static String serializeCommand(String realMessage) {
         String tempStr = String.copyValueOf(realMessage.toCharArray());
         Map<String, String> commandMap = TelegramOnebotAdapter.config.getCommand().getCommandMap();
@@ -152,7 +210,12 @@ public class TelegramToOnebot implements ApplicationRunner {
         for (Map.Entry<String, String> entry : commandMap.entrySet()) {
             String key = prefix+entry.getKey();
             String value = prefix+entry.getValue();
-            tempStr = tempStr.replace(key, value);
+            tempStr = tempStr.replace(key + ' ', value + ' ');
+
+            if (tempStr.endsWith(key)) {
+                int lastIndex = tempStr.lastIndexOf(key);
+                tempStr = tempStr.substring(0, lastIndex) + value + tempStr.substring(lastIndex + key.length());
+            }
         }
 
         return tempStr;

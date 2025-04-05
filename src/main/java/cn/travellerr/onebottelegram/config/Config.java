@@ -30,7 +30,7 @@ public class Config implements Serializable {
     public static class telegram implements Serializable {
 
         private Config.telegram.bot bot;
-//        private Config.telegram.webhook webhook;
+        private Config.telegram.webhook webhook;
 
         @Data
         @Builder
@@ -56,15 +56,17 @@ public class Config implements Serializable {
 
         }
 
-/*        @Data
+        @Data
         @Builder
         @AllArgsConstructor
         @NoArgsConstructor
         public static class webhook implements Serializable {
             private String certPath;
-            private String secretPath;
+            private String secret;
+            private String url;
+            private int port;
             private boolean useWebhook;
-        }*/
+        }
     }
 
     @Data
@@ -76,6 +78,8 @@ public class Config implements Serializable {
             private String path;
             private int port;
             private boolean useArray;
+            private boolean banGroupUser;
+            private String groupUserWarning;
     }
 
     @Data
@@ -113,6 +117,7 @@ public class Config implements Serializable {
     @NoArgsConstructor
     public static class command implements Serializable {
         private String prefix;
+        private Map<String, String> menu;
         private Map<String, String> commandMap;
     }
 }

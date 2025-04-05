@@ -17,7 +17,7 @@ public class HibernateUtil {
      * @date 2022/7/30 23:04
      */
     public static void init(TelegramOnebotAdapter app) {
-        Config config = TelegramOnebotAdapter.INSTANCE.config;
+        Config config = TelegramOnebotAdapter.config;
 
         Configuration configuration = HibernatePlusService.createConfiguration(app.getClass());
         configuration.setPackageName("cn.travellerr.onebottelegram.hibernate.entity");
