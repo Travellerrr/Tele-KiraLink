@@ -89,6 +89,7 @@ public class Config implements Serializable {
     public static class spring implements Serializable {
         private Config.spring.jackson jackson;
         private Config.spring.database database;
+        private Config.spring.webui webui;
 
         @Data
         @Builder
@@ -108,6 +109,15 @@ public class Config implements Serializable {
             private String mysqlUrl;
             private String mysqlUser;
             private String mysqlPassword;
+        }
+
+        @Data
+        @Builder
+        @AllArgsConstructor
+        @NoArgsConstructor
+        public static class webui implements Serializable {
+            private String userName;
+            private String password;
         }
     }
 

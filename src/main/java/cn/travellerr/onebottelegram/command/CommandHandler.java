@@ -2,6 +2,7 @@ package cn.travellerr.onebottelegram.command;
 
 import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
 import cn.travellerr.onebottelegram.config.ConfigGenerator;
+import cn.travellerr.onebottelegram.webui.api.LogWebSocketHandler;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.impl.history.DefaultHistory;
@@ -13,6 +14,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class CommandHandler {
+
+    public static final CommandHandler INSTANCE = new CommandHandler();
 
     private final ExecutorService executorService = Executors.newCachedThreadPool();
 
@@ -30,13 +33,13 @@ public class CommandHandler {
         CompletableFuture.runAsync(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 String command = reader.readLine("> ");
-                commandHandler.handleCommand(command);
+                log.info(commandHandler.handleCommand(command));
             }
         }, commandHandler.executorService);
 
     }
 
-    public void handleCommand(String command) {
+    public String handleCommand(String command) {
         // 解析指令
         String[] parts = command.split(" ");
         String action = parts[0];
@@ -50,34 +53,32 @@ public class CommandHandler {
         // 执行相应的操作
         switch (action) {
             case "test":
-                test(args);
-                break;
+                return test(args);
             case "reload":
-                reloadConfig();
-                break;
+                return reloadConfig();
             case "help":
-                System.out.println("Available commands: test, reload, help, stop");
-                break;
+                return "Available commands: test, reload, help, stop";
             case "stop":
                 log.info("Stopping Telegram OneBot Adapter...");
+                LogWebSocketHandler.broadcast("Stopping Telegram OneBot Adapter...");
                 executorService.shutdown();
                 System.exit(0);
-                break;
+                return "";
             default:
-                log.error("Unknown command: " + action);
+                return "Unknown command: " + action;
         }
     }
 
-    private void reloadConfig() {
+    private String reloadConfig() {
         TelegramOnebotAdapter.config = ConfigGenerator.loadConfig();
-        System.out.println(TelegramOnebotAdapter.config.getCommand().getCommandMap());
+        return TelegramOnebotAdapter.config.getCommand().getCommandMap().toString();
     }
 
-    private void test(String[] args) {
+    private String test(String[] args) {
         if (args.length > 0) {
-            System.out.println("Hello, " + String.join(" ", args) + "!");
+            return "Hello, " + String.join(" ", args) + "!";
         } else {
-            System.out.println("Hello!");
+            return "Hello!";
         }
     }
 }

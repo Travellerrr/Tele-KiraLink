@@ -22,7 +22,7 @@ plugins {
 
 
 group = 'cn.travellerr'
-version = "0.0.4-alpha"
+version = "0.0.5"
 
 
 java {
@@ -39,6 +39,7 @@ dependencies {
 //    implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.projectlombok:lombok:1.18.28'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
     annotationProcessor 'org.projectlombok:lombok:1.18.28'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 

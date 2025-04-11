@@ -17,9 +17,10 @@ import java.util.Collections;
 @ConfigurationPropertiesScan
 public class TelegramOnebotAdapter {
 
-    public static final String VERSION = "0.0.4-alpha";
+    public static final String VERSION = "0.0.5";
     public static TelegramOnebotAdapter INSTANCE = new TelegramOnebotAdapter();
     public static Config config;
+    public static long startTime = System.currentTimeMillis();
 
     public static void main(String[] args) {
         SpringApplication springApplication = new SpringApplication(TelegramOnebotAdapter.class);

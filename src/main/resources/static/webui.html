@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Telegram Bot 控制台</title>
+    <link href="css/index.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script defer src="js/SideButtonPosition.js"></script>
+    <script defer src="js/UpdateInformation.js"></script>
+
+</head>
+<body>
+<!-- 左侧边栏 -->
+<div id="sidebar">
+    <button id="toggle-btn">◀</button>
+    <div class="bot-info">
+        <img alt="Bot Avatar" class="avatar" src="">
+        <h2>BotName</h2>
+        <h4>@MyTelegramBot</h4>
+        <div class="status-info">
+            <p>运行时长: <span id="uptime">12h 34m</span></p>
+            <p>OneBot版本: v11</p>
+        </div>
+    </div>
+</div>
+
+<!-- 右侧控制台 -->
+<div id="console">
+    <div class="log-area" id="log-container">
+        <div class="log-entry">[系统] 服务已启动</div>
+        <div class="log-entry">[连接] 已接入OneBot客户端</div>
+    </div>
+
+    <div class="input-container">
+        <div class="function-menu"  style="display: flex; flex-direction: row;">
+            <button onclick="toggleMenu()"><i class="fa fa-list"></i></button>
+            <div class="menu-content" id="menuContent">
+                <button onclick="selectFunction('command')">指令发送</button>
+                <button onclick="selectFunction('message')">消息发送</button>
+                <button onclick="selectFunction('quick')">快捷指令</button>
+            </div>
+        </div>
+
+        <div id="contact-list" style="display:none;flex:1;"></div>
+
+        <label for="input-field"></label><textarea id="input-field" onkeydown="if(event.key === 'Enter' && !event.shiftKey) { sendMessage(); event.preventDefault();}" style="flex:3;resize:none; border:1px solid; font-size: 150%"></textarea>
+        <button onclick="sendMessage()" style="border: none; background: none; padding: 0; cursor: pointer; font-size: 1.5em; color: #3498db"><i class="fa fa-play"></i></button>
+    </div>
+</div>
+
+
+</body>
+</html>

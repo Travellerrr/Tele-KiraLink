@@ -110,6 +110,9 @@ data class Text(
     val data: TextData
 ) : ArrayMessage {
     constructor(text: String) : this("text", TextData(text))
+    override fun toString() : String {
+        return Json.encodeToString(serializer(), this)
+    }
 }
 
 @Serializable

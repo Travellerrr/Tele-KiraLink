@@ -42,6 +42,7 @@ public class TelegramToOnebot implements ApplicationRunner {
     public static void forwardToOnebot(Update update) {
         if (update.message() != null&&update.message().text() != null) {
 
+
             messageIdToChatId.put(update.message().messageId(), Math.abs(update.message().chat().id()));
 
             // 截取"@"前消息

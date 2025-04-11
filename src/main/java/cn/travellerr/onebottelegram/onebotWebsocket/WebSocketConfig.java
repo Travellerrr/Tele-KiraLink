@@ -1,5 +1,6 @@
 package cn.travellerr.onebottelegram.onebotWebsocket;
 
+import cn.travellerr.onebottelegram.webui.api.LogWebSocketHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,11 +18,16 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Autowired
     private OneBotWebSocketHandler handler;
 
+    @Autowired
+    private LogWebSocketHandler logHandler;
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(handler, config.getOnebot().getPath())
+                .addHandler(logHandler, "/ws/logs")
                 .setAllowedOrigins("*");
     }
+
 
     @Bean
     public ServletServerContainerFactoryBean createWebSocketContainer() {

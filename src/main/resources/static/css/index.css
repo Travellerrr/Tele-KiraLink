@@ -1,0 +1,95 @@
+:root {
+    --sidebar-width: 280px;
+    --primary-color: #2c3e50;
+    --secondary-color: #3498db;
+}
+
+body {
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* 左侧侧边栏 */
+#sidebar {
+    width: var(--sidebar-width);
+    background: var(--primary-color);
+    color: white;
+    transition: 0.3s;
+    position: relative;
+}
+
+
+
+/* 折叠按钮 */
+#toggle-btn {
+    position: absolute;
+    right: -40px;
+    top: 20px;
+
+    border: none;
+    color: white;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 0 5px 5px 0;
+}
+
+/* 机器人信息区域 */
+.bot-info {
+    padding: 20px;
+}
+
+.avatar {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    margin: 0 auto;
+    display: block;
+}
+
+/* 控制台区域 */
+#console {
+    flex: 1;
+    background: #ecf0f1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 消息显示区域 */
+.log-area {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background: white;
+    margin: 10px;
+    border-radius: 5px;
+}
+
+/* 输入控制区域 */
+.input-container {
+    padding: 20px;
+    background: white;
+    margin: 10px;
+    border-radius: 5px;
+    display: flex;
+    gap: 10px;
+}
+
+/* 功能选择菜单 */
+.function-menu {
+    position: relative;
+    display: inline-block;
+}
+
+.menu-content {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    background: white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    min-width: 200px;
+    z-index: 1;
+}
+
+.show { display: block; }

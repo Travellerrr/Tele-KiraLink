@@ -158,7 +158,7 @@ public class OnebotAction {
         return new TextMessage(object.toString());
     }
 
-    private static TextMessage getGroupList(int echo) {
+    public static TextMessage getGroupList(int echo) {
         JSONObject object = new JSONObject(new Data(echo));
         List<Group> groupList = HibernateFactory.selectList(Group.class);
 
@@ -215,7 +215,7 @@ public class OnebotAction {
         return new TextMessage(object.toString());
     }
 
-    private static TextMessage sendMessage(int echo, long chatId, String messageStr, boolean isGroup) {
+    public static TextMessage sendMessage(int echo, long chatId, String messageStr, boolean isGroup) {
         String realMessage = messageStr;
         if (!TelegramOnebotAdapter.config.getOnebot().isUseArray()) {
             realMessage = TelegramToOnebot.stringMessageToArray(messageStr);
