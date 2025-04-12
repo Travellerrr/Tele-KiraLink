@@ -1,18 +1,23 @@
 package cn.travellerr.onebottelegram.onebotWebsocket.onebotSerialize;
 
 import cn.chahuyun.hibernateplus.HibernateFactory;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.travellerr.onebotApi.*;
 import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
+import cn.travellerr.onebottelegram.converter.LanguageCode;
 import cn.travellerr.onebottelegram.converter.TelegramToOnebot;
+import cn.travellerr.onebottelegram.converter.Translator;
 import cn.travellerr.onebottelegram.hibernate.entity.Group;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
-import com.pengrad.telegrambot.model.ChatFullInfo;
-import com.pengrad.telegrambot.model.ChatMember;
+import com.pengrad.telegrambot.model.*;
+import com.pengrad.telegrambot.model.request.ChatAction;
+import com.pengrad.telegrambot.model.request.ParseMode;
 import com.pengrad.telegrambot.model.request.ReplyParameters;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.request.*;
+import com.pengrad.telegrambot.response.BaseResponse;
 import com.pengrad.telegrambot.response.GetChatResponse;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.springframework.web.socket.TextMessage;
@@ -22,6 +27,7 @@ import org.springframework.web.socket.WebSocketSession;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Date;
 import java.util.List;
 
 import static org.reflections.Reflections.log;
@@ -65,6 +71,16 @@ public class OnebotAction {
                 userId = params.getLong("user_id");
                 session.sendMessage(getGroupMemberInfo(echo, groupId, userId));
                 break;
+            case "get_msg":
+                msgId = params.getInt("message_id");
+                session.sendMessage(getMsg(echo, msgId));
+                break;
+            case "set_group_ban":
+                groupId = -params.getLong("group_id");
+                userId = params.getLong("user_id");
+                int duration = params.getInt("duration", 0) == 0 ? 0 : Math.max(params.getInt("duration"), 30);
+                session.sendMessage(setGroupBan(groupId, userId, duration));
+                break;
             case "delete_msg":
                 msgId = params.getInt("message_id");
                 session.sendMessage(deleteMessage(echo, msgId));
@@ -86,11 +102,13 @@ public class OnebotAction {
                 boolean isPrivate = userId != -1L;
                 long targetId = isPrivate ? userId : groupId;
                 session.sendMessage(sendMessage(echo, targetId, message, !isPrivate));
+                break;
             case "set_group_special_title":
                 groupId = -params.getLong("group_id");
                 userId = params.getLong("user_id");
                 title = params.getStr("special_title");
-                TelegramApi.bot.execute(new PromoteChatMember(groupId, userId).canChangeInfo(false).canDeleteMessages(false).canInviteUsers(false).canRestrictMembers(false).canPinMessages(false).canPromoteMembers(false));
+                TelegramApi.bot.execute(new SendChatAction(groupId, ChatAction.typing));
+                TelegramApi.bot.execute(new PromoteChatMember(groupId, userId).canManageChat(true));
                 TelegramApi.bot.execute(new SetChatAdministratorCustomTitle(groupId, userId, title));
                 break;
             case "set_group_name":
@@ -101,26 +119,96 @@ public class OnebotAction {
             case "set_group_kick":
                 groupId = -params.getLong("group_id");
                 userId = params.getLong("user_id");
-                TelegramApi.bot.execute(new BanChatMember(groupId, userId).untilDate(0));
+                BaseResponse response = TelegramApi.bot.execute(new BanChatMember(groupId, userId).untilDate(30));
+                System.out.println(response.description());
                 break;
             case "set_group_admin":
                 groupId = -params.getLong("group_id");
                 userId = params.getLong("user_id");
-                TelegramApi.bot.execute(new PromoteChatMember(groupId, userId).canChangeInfo(false).canDeleteMessages(false).canInviteUsers(false).canRestrictMembers(false).canPinMessages(false).canPromoteMembers(false));
+                TelegramApi.bot.execute(new PromoteChatMember(groupId, userId).canManageChat(true));
                 break;
             case "get_avatar":
                 userId = params.getLong("user_id");
-                JSONObject obj = new JSONObject().set("echo", echo).set("message", "https://avatars.githubusercontent.com/u/139743802?v=4&size=256").set("retcode", 0).set("user_id", userId);
+                UserProfilePhotos userProfilePhotos = TelegramApi.bot.execute(new GetUserProfilePhotos(userId)).photos();
+                String avatarId = "";
+
+                if (userProfilePhotos != null && userProfilePhotos.photos().length > 0) {
+                    com.pengrad.telegrambot.model.PhotoSize[] photoSizes = userProfilePhotos.photos()[0];
+                    if (photoSizes.length > 2) {
+                        avatarId = TelegramApi.bot.getFullFilePath(
+                            TelegramApi.bot.execute(new GetFile(photoSizes[2].fileId())).file()
+                        );
+                    }
+                }
+
+                JSONObject obj = new JSONObject(new Data(echo, true)).set("message", avatarId);
                 session.sendMessage(new TextMessage(obj.toString()));
                 break;
             default:
                 log.error("未知的 OneBot 消息: {}", action);
-                session.sendMessage(new TextMessage(new JSONObject(new Data(echo, "", 0, "failed", "")).set("data", new JSONObject().set("error_code", "unknown_action")).toString()));
+                session.sendMessage(new TextMessage(new JSONObject(new Data(echo, "", 1404, "failed", "")).set("data", null).toString()));
+                break;
         }
         } catch (Exception e) {
             log.error("处理 OneBot 消息失败", e);
         }
     }
+
+    private static WebSocketMessage<?> getMsg(int echo, int msgId) {
+        JSONObject msg;
+        try {
+            msg = HibernateFactory.selectOne(cn.travellerr.onebottelegram.hibernate.entity.Message.class, msgId)
+                    .getMessage();
+        } catch (NullPointerException e) {
+            log.error("获取消息失败", e.getMessage());
+            return new TextMessage(new JSONObject(new Data(echo, "", 1404, "failed", "")).set("data", null).toString());
+        }
+        msg.remove("self_id");
+        msg.remove("post_type");
+        msg.remove("sub_type");
+        msg.remove("font");
+        msg.remove("raw_message");
+        msg.remove("user_id");
+        try {
+           msg.remove("anonymous");
+           msg.remove("group_id");
+        } catch (Exception ignored) {
+        }
+        msg.set("real_id", msg.get("message_id"));
+        return new TextMessage(new JSONObject(new Data(echo, "", 0, "ok", "")).set("data", msg).toString());
+
+    }
+
+    private static WebSocketMessage<?> setGroupBan(long groupId, long userId, int duration) {
+        BaseResponse response;
+        if (duration != 0) {
+            int offset = (int) (DateUtil.offsetSecond(new Date(), duration).getTime() / 1000);
+            response = TelegramApi.bot.execute(new RestrictChatMember(groupId, userId, new ChatPermissions().canSendMessages(false).canPinMessages(false).canSendPhotos(false).canSendVideos(false)).untilDate(offset));
+        } else {
+            response = TelegramApi.bot.execute(new RestrictChatMember(groupId, userId, new ChatPermissions()
+                    .canSendMessages(true)
+                    .canSendAudios(true)
+                    .canSendDocuments(true)
+                    .canSendPhotos(true)
+                    .canSendVideos(true)
+                    .canSendVideoNotes(true)
+                    .canSendVoiceNotes(true)
+                    .canSendPolls(true)
+                    .canSendOtherMessages(true)
+                    .canAddWebPagePreviews(true)
+                    .canChangeInfo(true)
+                    .canInviteUsers(true)
+                    .canPinMessages(true)
+                    .canManageTopics(true)
+                    .canPostStories(true)
+                    .canEditStories(true)
+                    .canDeleteStories(true)));
+        }
+        boolean status = response.isOk();
+
+        return new TextMessage(new JSONObject(new Data(0, status)).toString());
+    }
+
 
     private static WebSocketMessage<?> getGroupInfo(int echo, long groupId) {
         ChatFullInfo info = TelegramApi.bot.execute(new GetChat(groupId)).chat();
@@ -222,6 +310,8 @@ public class OnebotAction {
         }
         JSONArray messageArray = new JSONArray(realMessage);
 
+        LanguageCode languageCode = LanguageCode.ZH_HANS;
+
         StringBuilder sb = new StringBuilder();
         SendPhoto photo = null;
         ReplyParameters replyParameters = null;
@@ -232,16 +322,38 @@ public class OnebotAction {
 
             switch (msg.getStr("type")) {
                 case "at":
-                    String username;
+                    Long userId = msg.getJSONObject("data").getLong("qq");
+                    String username, firstName;
+
                     if (isGroup) {
-                        username = TelegramApi.bot.execute(new GetChatMember(chatId, msg.getJSONObject("data").getLong("qq"))).chatMember().user().username();
+                        User user = TelegramApi.bot.execute(new GetChatMember(chatId, userId)).chatMember().user();
+                        languageCode = LanguageCode.parseLanguageCode(user.languageCode());
+                        username = user.username();
+                        firstName = user.firstName();
                     } else {
-                        username = TelegramApi.bot.execute(new GetChat(chatId)).chat().username();
+                        ChatFullInfo fullInfo = TelegramApi.bot.execute(new GetChat(chatId)).chat();
+                        userId = chatId;
+                        username = fullInfo.username();
+                        firstName = fullInfo.firstName();
                     }
-                    sb.append("@").append(username);
+
+                    sb.append(username != null ? "@" + username : "<a href=\"tg://user?id=" + userId + "\">" + firstName + "</a>");
                     break;
                 case "text":
-                    sb.append(msg.getJSONObject("data").getStr("text"));
+                    String message = msg.getJSONObject("data").getStr("text");
+                    if (!message.startsWith("html://")) {
+                        message = message
+                                .replace("&", "&amp;")
+                                .replace("<", "&lt;")
+                                .replace(">", "&gt;")
+                                .replace("\"", "&quot;");
+                    } else {
+                        message = message.substring(7);
+                    }
+                    if (TelegramOnebotAdapter.config.getTelegram().getBot().isUseTranslator() && !languageCode.equals(LanguageCode.ZH_HANS)) {
+                        message = Translator.Trans(languageCode, message);
+                    }
+                    sb.append(message);
                     break;
                 case "image":
                     if (msg.getJSONObject("data").getStr("file").startsWith("file://")) {
@@ -267,7 +379,7 @@ public class OnebotAction {
 
         if (photo != null) {
             photo.caption(text);
-
+            photo.parseMode(ParseMode.HTML);
             if (replyParameters != null) {
                 photo.replyParameters(replyParameters);
             }
@@ -275,7 +387,7 @@ public class OnebotAction {
             response = TelegramApi.bot.execute(photo);
         } else {
             SendMessage request = new SendMessage(chatId, text);
-
+            request.parseMode(ParseMode.HTML);
             if (replyParameters != null) {
                 request.replyParameters(replyParameters);
             }
@@ -298,9 +410,9 @@ public class OnebotAction {
             }).start();
 
             log.info("发送消息至 Onebot --> {}", obj);
-            return new TextMessage(new JSONObject(new Data(echo, "", 0, "failed", "")).set("data", obj).toString());
+            return new TextMessage(new JSONObject(new Data(echo, "", 1404, "failed", "")).set("data", null).toString());
         } else {
-            TelegramToOnebot.messageIdToChatId.put(response.message().messageId(), Math.abs(chatId));
+            TelegramToOnebot.messageIdToChatId.put(response.message().messageId(), chatId);
             JSONObject obj = new JSONObject().set("message_id", response.message().messageId());
 
             JSONObject object = new JSONObject(new Data(echo, "", 0, "ok", "")).set("data", obj);
@@ -323,12 +435,15 @@ public class OnebotAction {
             }
             return null;
         }
-        String title = "";
+        String title = "", status = chat.status().toString();
         String username = chat.user().username();
         if (username == null) {
             username = chat.user().firstName();
         }
-        return new MemberInfo(Math.abs(groupId), memberId, username, chat.user().firstName(), "unknown", 0, "虚拟地区", 0, 0, "0",levelConverter(String.valueOf(chat.status())),false , title,0 ,chat.canChangeInfo());
+        if (chat.canPromoteMembers()) {
+            status="creator";
+        }
+        return new MemberInfo(Math.abs(groupId), memberId, username, chat.user().firstName(), "unknown", 0, "虚拟地区", 0, 0, "0",levelConverter(status),false , title,0 ,chat.canChangeInfo());
     }
 
 

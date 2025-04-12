@@ -205,3 +205,8 @@ data class AtData(
 data class File(
     val file: String
 )
+
+@Serializable
+data class Id(
+    val id: Long
+)

@@ -40,6 +40,7 @@ public class Config implements Serializable {
             private String token;
             private String username;
             private Config.telegram.bot.proxy proxy;
+            private boolean useTranslator;
 
             @Data
             @Builder
@@ -80,6 +81,7 @@ public class Config implements Serializable {
             private boolean useArray;
             private boolean banGroupUser;
             private String groupUserWarning;
+            private boolean picBase64;
     }
 
     @Data

@@ -87,6 +87,8 @@ data class Data(
 ) {
     constructor(echo: Int) : this(echo, "", 0, "ok", "")
 
+    constructor(echo: Int, status: Boolean) : this(echo, "", 0, if (status) "ok" else "failed", "")
+
     companion object {
 
         fun parse(json: String): Data {
@@ -129,4 +131,12 @@ data class Image(
     val data: File
 ) : ArrayMessage {
     constructor(file: String) : this("image", File(file))
+}
+
+@Serializable
+data class Reply(
+    override val type: String = "reply",
+    val data: Id
+) : ArrayMessage {
+    constructor(messageId: Long) : this("reply", Id(messageId))
 }

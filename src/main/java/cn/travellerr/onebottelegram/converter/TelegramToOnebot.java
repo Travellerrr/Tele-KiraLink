@@ -1,27 +1,36 @@
 package cn.travellerr.onebottelegram.converter;
 
 import cn.chahuyun.hibernateplus.HibernateFactory;
+import cn.hutool.core.codec.Base64Encoder;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.travellerr.onebotApi.*;
 import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
 import cn.travellerr.onebottelegram.hibernate.HibernateUtil;
 import cn.travellerr.onebottelegram.hibernate.entity.Group;
+import cn.travellerr.onebottelegram.hibernate.entity.Message;
 import cn.travellerr.onebottelegram.onebotWebsocket.OneBotWebSocketHandler;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
+import cn.travellerr.onebottelegram.webui.api.LogWebSocketHandler;
 import com.pengrad.telegrambot.model.Chat;
+import com.pengrad.telegrambot.model.PhotoSize;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.model.request.InlineKeyboardButton;
 import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup;
 import com.pengrad.telegrambot.model.request.ReplyParameters;
 import com.pengrad.telegrambot.request.GetChatMemberCount;
+import com.pengrad.telegrambot.request.GetFile;
 import com.pengrad.telegrambot.request.SendMessage;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
+import java.io.InputStream;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,19 +49,21 @@ public class TelegramToOnebot implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(TelegramToOnebot.class);
 
     public static void forwardToOnebot(Update update) {
-        if (update.message() != null&&update.message().text() != null) {
+        if (update.message() != null&&(update.message().text() != null || update.message().photo() != null)) {
 
-
-            messageIdToChatId.put(update.message().messageId(), Math.abs(update.message().chat().id()));
+            messageIdToChatId.put(update.message().messageId(), update.message().chat().id());
 
             // 截取"@"前消息
-            String realMessage = update.message().text().replace("@"+TelegramApi.getMeResponse.user().username(), "").trim();
+            String realMessage = Optional.ofNullable(update.message().text())
+                    .orElse(Optional.ofNullable(update.message().caption()).orElse(""))
+                    .replace("@" + TelegramApi.getMeResponse.user().username(), "")
+                    .trim();
+
             long fromId = Math.abs(update.message().from().id());
 
             String username = update.message().from().username();
 
             String firstName = update.message().from().firstName();
-
 
             if (username == null) {
                 username = update.message().from().firstName();
@@ -64,23 +75,49 @@ public class TelegramToOnebot implements ApplicationRunner {
 
                 TelegramApi.bot.execute(
                         new SendMessage(update.message().chat().id(), "菜单")
-                                .replyMarkup(buildMenuButtons())
-                                .replyParameters(new ReplyParameters(update.message().messageId(), update.message().chat().id()))
+                            .replyMarkup(buildMenuButtons())
+                            .replyParameters(new ReplyParameters(update.message().messageId(), update.message().chat().id()))
                 );
-
                 return;
             }
 
             JSONObject object;
-
             realMessage = serializeCommand(realMessage);
 
+            JSONArray message = new JSONArray();
 
-            JSONArray message = new JSONArray().set(new Text(realMessage));
+            if (update.message().messageThreadId() != null) {
+                Reply reply = new Reply(update.message().messageThreadId());
+                message.add(reply);
+            }
 
+            if (update.message().photo() != null) {
+                for (PhotoSize photo : getEveryPhoto(update.message().photo())) {
+                    String filePath = TelegramApi.bot.getFullFilePath(
+                            TelegramApi.bot.execute(new GetFile(photo.fileId())).file()
+                    );
+
+                    try {
+                        Image image;
+                        if (TelegramOnebotAdapter.config.getOnebot().isPicBase64()) {
+                            try (Response response = TelegramApi.okHttpClient.newCall(new Request.Builder().url(filePath).build()).execute();
+                                 InputStream in = Objects.requireNonNull(response.body()).byteStream()) {
+                                image = new Image("base64://" + Base64Encoder.encode(in.readAllBytes()));
+                            }
+                        } else {
+                            image = new Image(filePath);
+                        }
+                        message.add(image);
+                    } catch (Exception e) {
+                        log.error("Failed to retrieve image: {}", e.getMessage());
+                    }
+                }
+            }
+
+            message.add(new Text(realMessage));
 
             if (update.message().chat().type().equals(Chat.Type.group) || update.message().chat().type().equals(Chat.Type.supergroup)) {
-                Group group = null;
+                Group group;
 
                 if (!(update.message().senderChat() == null)) {
                     if (TelegramOnebotAdapter.config.getOnebot().isBanGroupUser()) {
@@ -94,13 +131,10 @@ public class TelegramToOnebot implements ApplicationRunner {
                     }
                     username = update.message().senderChat().username();
                     fromId = Math.abs(update.message().senderChat().id());
-                    firstName = update.message().senderChat().firstName();
+                    firstName = update.message().senderChat().title();
                 }
 
-                try {
-                    group = HibernateFactory.selectOne(Group.class, update.message().chat().id());
-                } catch (Exception ignored) {
-                }
+                group = HibernateFactory.selectOne(Group.class, update.message().chat().id());
 
                 if (group == null) {
                     int memberCount = TelegramApi.bot.execute(new GetChatMemberCount(update.message().chat().id())).count();
@@ -109,9 +143,7 @@ public class TelegramToOnebot implements ApplicationRunner {
                             .groupName(update.message().chat().title())
                             .memberCount(memberCount)
                             .build();
-                    HibernateFactory.merge(group);
                 }
-
                 group.addMemberId(fromId);
                 group.addMemberUsernames(username);
                 HibernateFactory.merge(group);
@@ -121,9 +153,8 @@ public class TelegramToOnebot implements ApplicationRunner {
                     List<String> messageList = new ArrayList<>();
                     Matcher matcher = Pattern.compile("@(\\S+?)(\\s|$)").matcher(realMessage);
 
-                    List<Long> membersIdList = group.getMembersIdList();
-                    List<String> memberUsernameList = group.getMemberUsernamesList();
-
+                    final var membersIdList = group.getMembersIdList();
+                    final var memberUsernameList = group.getMemberUsernamesList();
 
                     int lastIndex = 0;
                     while (matcher.find()) {
@@ -150,11 +181,7 @@ public class TelegramToOnebot implements ApplicationRunner {
                             At atObject = new At(atList.get(i));
                             message.add(atObject);
                         }
-
-
                     }
-
-
                 }
 
                 Sender groupSender = new Sender(fromId, username, firstName, "unknown", 0, "虚拟地区", "0", "member", "");
@@ -175,10 +202,25 @@ public class TelegramToOnebot implements ApplicationRunner {
 
             log.info("发送消息至 Onebot --> {}", object);
 
+            HibernateFactory.merge(new Message(update.message(), object.toString()));
             OneBotWebSocketHandler.broadcast(object.toString());
-
-
+            LogWebSocketHandler.broadcast(handleTextMessage(object.toString()));
         }
+    }
+
+    private static List<PhotoSize> getEveryPhoto(PhotoSize[] photo) {
+        List<PhotoSize> photos = new ArrayList<>();
+        for (int i = photo.length-1; i >= 0; i--) {
+            if (i == photo.length-1 && photo[i] != null) {
+                photos.add(photo[i]);
+                continue;
+            }
+            if (photo[i] != null && !photo[i].fileId().equals(photo[i + 1].fileId())
+                && !photo[i].fileUniqueId().startsWith(photo[i + 1].fileUniqueId().substring(0, photo[i + 1].fileUniqueId().length() - 1))) {
+                photos.add(photo[i]);
+            }
+        }
+        return photos;
     }
 
     public static InlineKeyboardMarkup buildMenuButtons() {
@@ -285,5 +327,29 @@ public class TelegramToOnebot implements ApplicationRunner {
         log.info("Telegram to Onebot converter is running...");
         HibernateUtil.init(TelegramOnebotAdapter.INSTANCE);
         TelegramApi.init();
+    }
+
+
+    public static String handleTextMessage(String message) {
+        final JSONObject jsonObject = new JSONObject(message);
+        if (jsonObject.isNull("sender")) {
+            LogWebSocketHandler.broadcast(jsonObject.toString());
+            return jsonObject.toString();
+        }
+        boolean isGroup = jsonObject.getInt("group_id") != null;
+
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(DateUtil.format(new Date(jsonObject.getLong("time")), "yyyy-MM-dd HH:mm:ss")).append(" ");
+        stringBuilder.append("[");
+        if (isGroup) {
+            stringBuilder.append("群组").append(jsonObject.getInt("group_id")).append(" ");
+        } else {
+            stringBuilder.append("私聊 ");
+        }
+        stringBuilder.append(jsonObject.getJSONObject("sender").getStr("card")).append("(")
+                .append(jsonObject.getJSONObject("sender").getStr("user_id")).append(")]: ")
+                .append(TelegramToOnebot.arrayMessageToString(jsonObject.getJSONArray("message")));
+
+        return stringBuilder.toString();
     }
 }

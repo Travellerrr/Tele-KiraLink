@@ -1,11 +1,9 @@
 package cn.travellerr.onebottelegram.telegramApi;
 
-import cn.hutool.core.codec.Base64Encoder;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.travellerr.onebottelegram.config.Config;
 import cn.travellerr.onebottelegram.converter.TelegramToOnebot;
-import cn.travellerr.onebottelegram.webui.api.WebSocketMessage;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.*;
@@ -43,21 +41,23 @@ import static cn.travellerr.onebottelegram.TelegramOnebotAdapter.config;
 @Component
 public class TelegramApi {
 
-
     private static final String token = config.getTelegram().getBot().getToken();
 
     private static final String username = config.getTelegram().getBot().getUsername();
 
     public static GetMeResponse getMeResponse;
 
+    // Telegram bot 头像，URL链接或本地目录
     public static String botAvatar;
 
     public static TelegramBot bot;
 
+    public static OkHttpClient okHttpClient;
+
     private static final Logger log = LoggerFactory.getLogger(TelegramApi.class);
 
     public static void init() {
-        OkHttpClient okHttpClient = createBot();
+        okHttpClient = createBot();
         log.info("Telegram bot 开始运行: " + username);
 
         try {
@@ -78,7 +78,7 @@ public class TelegramApi {
 //        log.info("Telegram bot Webhook 未启用, 使用长轮询模式");
         log.info("Telegram bot 使用长轮询模式");
         setupLongPolling();
-        WebSocketMessage.init();
+//        WebSocketMessage.init();
     }
 
     private static void retryGetMeResponse() {
@@ -129,7 +129,7 @@ public class TelegramApi {
             Path path = Paths.get("bot_avatar.jpg");
             Files.copy(in, path, StandardCopyOption.REPLACE_EXISTING);
             log.info("Telegram bot 头像已保存至本地: bot_avatar.jpg");
-            botAvatar = "data:image/png;base64," + Base64Encoder.encode(Files.readAllBytes(path));
+            botAvatar = path.toAbsolutePath().toString();
             log.info("Telegram bot 头像: " + botAvatar.substring(0, 50) + "...");
         } catch (IOException e) {
             log.error("保存 Telegram bot 头像失败: " + e.getMessage());
