@@ -98,13 +98,13 @@ telegram:
 | /send_msg                |    [发送消息]     |   ✅    |
 | /delete_msg              |    [撤回信息]     |   ✅    |
 | /set_group_kick          |    [群组踢人]     |   ✅❓   |
-| /set_group_ban           |   [群组单人禁言]    |   ❌    |
+| /set_group_ban           |   [群组单人禁言]    |   ✅    |
 | /set_group_whole_ban     |   [群组全员禁言]    |   ❌    |
-| /set_group_admin         |   [群组设置管理员]   |   ✅❓   |
+| /set_group_admin         |   [群组设置管理员]   |   ✅   |
 | /set_group_card          | [设置群名片（群备注）]  |   ✅❓   |
 | /set_group_name          |    [设置群名]     |   ✅❓   |
 | /set_group_leave         |    [退出群组]     |   ✅❓   |
-| /set_group_special_title |  [设置群组专属头衔]   |   ✅❓   |
+| /set_group_special_title |  [设置群组专属头衔]   |   ✅   |
 | /set_friend_add_request  |   [处理加好友请求]   |   ❌    |
 | /set_group_add_request   |  [处理加群请求/邀请]  |   ❌    |
 | /get_login_info          |   [获取登录号信息]   |   ✅    |
@@ -121,7 +121,7 @@ telegram:
 | /set_restart             |    [重启协议端]    |   ❌    |
 | /.handle_quick_operation |  [对事件执行快速操作]  |   ❌    |
 | /get_image               |   [获取图片信息]    |   ❌    |
-| /get_msg                 |    [获取消息]     |   ❌    |
+| /get_msg                 |    [获取消息]     |   ✅    |
 | /get_status              |    [获取状态]     |   ✅    |
 
 
@@ -158,12 +158,11 @@ telegram:
 | 消息类型               | 收情况 | 发情况 |
 |--------------------|:---:|:---:|
 | 纯文本                |  ✅  |  ✅  |
-| 图片                 |  ❌  |  ✅  |
-| 图文混合(图片描述)         |  ❌  |  ✅  |
+| 图片                 |  ✅  |  ✅  |
+| 图文混合(图片描述)         |  ✅  |  ✅  |
 | 语音                 |  ❌  |  ❌  |
 | 短视频                |  ❌  |  ❌  |
 | at某人               |  ✅  |  ✅  |
-| 回复                 |  ❌  |  ✅  |
-| QQ表情(替代为`Sticker`) |  ❌  |  ❌  | 
+| 回复                 |  ✅  |  ✅  |
 
 </details>
