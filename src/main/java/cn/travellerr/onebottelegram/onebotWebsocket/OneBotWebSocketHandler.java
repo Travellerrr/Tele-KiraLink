@@ -1,5 +1,6 @@
 package cn.travellerr.onebottelegram.onebotWebsocket;
 
+import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
 import cn.travellerr.onebottelegram.onebotWebsocket.onebotSerialize.OnebotAction;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.StreamReadConstraints;
@@ -31,8 +32,44 @@ public class OneBotWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(@NotNull WebSocketSession session) {
+        if (!isValidAccessToken(session)) {
+            log.warn("无效的 accessToken，拒绝连接: {}", session.getId());
+            try {
+                session.close(CloseStatus.BAD_DATA);
+            } catch (IOException e) {
+                log.error("关闭连接失败", e);
+            }
+            return;
+        }
         sessions.add(session);
         log.info("新的 OneBot 客户端连接: {}", session.getId());
+    }
+
+    private boolean isValidAccessToken(WebSocketSession session) {
+        String query = session.getUri() != null ? session.getUri().getQuery() : null;
+        String token = "";
+
+        if (query != null && !query.isEmpty()) {
+            for (String param : query.split("&")) {
+                if (param.startsWith("access_token=")) {
+                    token = param.substring("access_token=".length());
+                    break;
+                }
+            }
+        }
+
+        if (token.isEmpty()) {
+            String authHeader = session.getHandshakeHeaders().getFirst("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring("Bearer ".length());
+            }
+        }
+        String expectedToken = TelegramOnebotAdapter.config.getOnebot().getToken();
+        if (!expectedToken.equals(token)) {
+            log.warn("access_token 不匹配: {}", token);
+            return false;
+        }
+        return true;
     }
 
     @Override

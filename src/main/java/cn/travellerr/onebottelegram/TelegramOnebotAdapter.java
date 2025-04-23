@@ -17,7 +17,7 @@ import java.util.Collections;
 @ConfigurationPropertiesScan
 public class TelegramOnebotAdapter {
 
-    public static final String VERSION = "0.0.6";
+    public static final String VERSION = "0.0.7-alpha";
     public static TelegramOnebotAdapter INSTANCE = new TelegramOnebotAdapter();
     public static Config config;
     public static long startTime = System.currentTimeMillis();
@@ -39,17 +39,16 @@ public class TelegramOnebotAdapter {
                      /_/   \\_\\\\__,_| \\__,_|| .__/  \\__|\\___||_|       \s
                                            |_|                     \s
                     """);
-            out.println("Telegram-Onebot-Adapter v" + VERSION);
+            out.println("Tele-KiraLink v" + VERSION);
         });
         springApplication.addListeners((ApplicationListener<ApplicationEnvironmentPreparedEvent>) event -> {
             config = ConfigGenerator.loadConfig();
             ConfigurableEnvironment environment = event.getEnvironment();
-            environment.getPropertySources().addFirst(new MapPropertySource("customPort", Collections.singletonMap("server.port", config.getOnebot().getPort())));
+            environment.getPropertySources().addFirst(new MapPropertySource("customPort",
+                    Collections.singletonMap("server.port", config.getOnebot().getPort())));
         });
 
-
         springApplication.run(args);
-
         CommandHandler.startCommandConsole();
     }
 

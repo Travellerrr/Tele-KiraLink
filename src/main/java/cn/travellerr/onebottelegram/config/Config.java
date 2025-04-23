@@ -78,6 +78,7 @@ public class Config implements Serializable {
             private String ip;
             private String path;
             private int port;
+            private String token;
             private boolean useArray;
             private boolean banGroupUser;
             private String groupUserWarning;

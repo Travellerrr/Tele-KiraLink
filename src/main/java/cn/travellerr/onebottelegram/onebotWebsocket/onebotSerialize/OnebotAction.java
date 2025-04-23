@@ -45,8 +45,8 @@ public class OnebotAction {
 
         switch (action) {
             case "get_version_info":
-                session.sendMessage(message(echo, new GetVersionInfo("TelegramAdapter", TelegramOnebotAdapter.VERSION, "v11")));
-                log.info("发送消息至 Onebot --> {}", new GetVersionInfo("TelegramAdapter", TelegramOnebotAdapter.VERSION, "v11"));
+                session.sendMessage(message(echo, new GetVersionInfo("Tele-KiraLink", TelegramOnebotAdapter.VERSION, "v11")));
+                log.info("发送消息至 Onebot --> {}", new GetVersionInfo("Tele-KiraLink", TelegramOnebotAdapter.VERSION, "v11"));
                 break;
             case "get_login_info":
                 session.sendMessage(message(echo, new GetLoginInfo(TelegramApi.getMeResponse.user().id(), TelegramApi.getMeResponse.user().username())));

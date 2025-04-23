@@ -138,7 +138,7 @@ async function sendMessage() {
         map.set('contactId', selectedContact);
         map.set("msg", value);
         map.set("isGroup", true)
-        if (await sendPostRequest(map, '/api/bot-contacts/send-message')) {
+        if (await sendPostRequest(map, '/api/bot-contacts/send-msg')) {
             log.innerHTML += `<div class="log-entry">[发送至 ${selectedContactName}] ${new Date().toLocaleTimeString()} - ${value}</div>`;
         } else {
             log.innerHTML += `<div class="log-entry">[发送失败！] ${new Date().toLocaleTimeString()} - ${value}</div>`;

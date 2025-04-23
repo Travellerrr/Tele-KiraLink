@@ -34,6 +34,9 @@ public class WebSecurityConfig {
 //                    }
 //                }, SecurityContextHolderAwareRequestFilter.class);
         http.csrf(AbstractHttpConfigurer::disable);
+        http.rememberMe(rememberMe -> rememberMe
+                .tokenValiditySeconds(86400*7) // 7天
+        );
 
         return http.build();
     }
