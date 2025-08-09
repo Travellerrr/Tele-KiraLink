@@ -36,7 +36,7 @@ public class OnebotAction {
     public static void handleAction(WebSocketSession session, String payload) {
         JSONObject jsonObject = new JSONObject(payload);
         String action = jsonObject.getStr("action");
-        int echo = jsonObject.getInt("echo");
+        String echo = jsonObject.getStr("echo", "0");
         try {
         long groupId, userId;
         int msgId;
@@ -50,7 +50,6 @@ public class OnebotAction {
                 break;
             case "get_login_info":
                 session.sendMessage(message(echo, new GetLoginInfo(TelegramApi.getMeResponse.user().id(), TelegramApi.getMeResponse.user().username())));
-                log.info("发送消息至 Onebot --> {}", new GetLoginInfo(TelegramApi.getMeResponse.user().id(), TelegramApi.getMeResponse.user().username()));
                 break;
             case "get_friend_list":
                 session.sendMessage(getFriendList(echo));
@@ -154,7 +153,7 @@ public class OnebotAction {
         }
     }
 
-    private static WebSocketMessage<?> getMsg(int echo, int msgId) {
+    private static WebSocketMessage<?> getMsg(String echo, int msgId) {
         JSONObject msg;
         try {
             msg = HibernateFactory.selectOne(cn.travellerr.onebottelegram.hibernate.entity.Message.class, msgId)
@@ -206,11 +205,11 @@ public class OnebotAction {
         }
         boolean status = response.isOk();
 
-        return new TextMessage(new JSONObject(new Data(0, status)).toString());
+        return new TextMessage(new JSONObject(new Data("0", status)).toString());
     }
 
 
-    private static WebSocketMessage<?> getGroupInfo(int echo, long groupId) {
+    private static WebSocketMessage<?> getGroupInfo(String echo, long groupId) {
         ChatFullInfo info = TelegramApi.bot.execute(new GetChat(groupId)).chat();
         int count = TelegramApi.bot.execute(new GetChatMemberCount(groupId)).count();
         JSONObject object = new JSONObject(new Data(echo));
@@ -220,14 +219,15 @@ public class OnebotAction {
     }
 
 
-    private static TextMessage message(int echo, Object message) {
+    private static TextMessage message(String echo, Object message) {
         JSONObject object = new JSONObject(new Data(echo));
         JSONObject messages = new JSONObject(message);
         object.set("data", messages);
+        log.info("发送消息至 Onebot --> {}", object);
         return new TextMessage(object.toString());
     }
 
-    private static TextMessage deleteMessage(int echo, int msgId) {
+    private static TextMessage deleteMessage(String echo, int msgId) {
         long chatId = -Math.abs(TelegramToOnebot.messageIdToChatId.get(msgId));
         TelegramApi.bot.execute(new DeleteMessage(chatId, Math.toIntExact(msgId)));
         JSONObject object = new JSONObject(new Data(echo)).set("data", new JSONArray());
@@ -236,7 +236,7 @@ public class OnebotAction {
         return new TextMessage(object.toString());
     }
 
-    private static TextMessage getFriendList(int echo) {
+    private static TextMessage getFriendList(String echo) {
         JSONObject object = new JSONObject(new Data(echo));
         Friend friend = new Friend(0, "Tra", "Tra");
         List<Friend> friends = List.of(friend);
@@ -246,7 +246,7 @@ public class OnebotAction {
         return new TextMessage(object.toString());
     }
 
-    public static TextMessage getGroupList(int echo) {
+    public static TextMessage getGroupList(String echo) {
         JSONObject object = new JSONObject(new Data(echo));
         List<Group> groupList = HibernateFactory.selectList(Group.class);
 
@@ -271,7 +271,7 @@ public class OnebotAction {
 
     }
 
-    private static TextMessage getGroupMemberList(int echo, long groupId) {
+    private static TextMessage getGroupMemberList(String echo, long groupId) {
         JSONObject object = new JSONObject(new Data(echo));
         Group group = HibernateFactory.selectOne(Group.class, groupId);
         if (group == null) {
@@ -291,7 +291,7 @@ public class OnebotAction {
         return new TextMessage(object.toString());
     }
 
-    private static TextMessage getGroupMemberInfo(int echo, long groupId, long memberId) {
+    private static TextMessage getGroupMemberInfo(String echo, long groupId, long memberId) {
         JSONObject object = new JSONObject(new Data(echo));
 
         getChatMember(groupId, memberId);
@@ -303,7 +303,7 @@ public class OnebotAction {
         return new TextMessage(object.toString());
     }
 
-    public static TextMessage sendMessage(int echo, long chatId, String messageStr, boolean isGroup) {
+    public static TextMessage sendMessage(String echo, long chatId, String messageStr, boolean isGroup) {
         String realMessage = messageStr;
         if (!TelegramOnebotAdapter.config.getOnebot().isUseArray()) {
             realMessage = TelegramToOnebot.stringMessageToArray(messageStr);

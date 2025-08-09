@@ -39,7 +39,7 @@ public class ApiController {
             Text text = new Text(msg);
             JSONArray array = new JSONArray();
             array.add(text);
-            OnebotAction.sendMessage(0,contactId, array.toString(), isGroup);
+            OnebotAction.sendMessage("0", contactId, array.toString(), isGroup);
             return true;
         } catch (Exception e) {
             e.printStackTrace();

@@ -2,10 +2,12 @@ package cn.travellerr.onebottelegram.onebotWebsocket;
 
 import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
 import cn.travellerr.onebottelegram.onebotWebsocket.onebotSerialize.OnebotAction;
+import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonObject;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +45,18 @@ public class OneBotWebSocketHandler extends TextWebSocketHandler {
         }
         sessions.add(session);
         log.info("新的 OneBot 客户端连接: {}", session.getId());
+        try {
+            JsonObject metaMessage = new JsonObject();
+            metaMessage.addProperty("time", System.currentTimeMillis() / 1000);
+            metaMessage.addProperty("meta_event_type", "lifecycle");
+            metaMessage.addProperty("post_type", "meta_event");
+            metaMessage.addProperty("sub_type", "connect");
+            metaMessage.addProperty("self_id", TelegramApi.getMeResponse.user().id());
+            log.info("TKL发送meta消息: {}", metaMessage);
+            session.sendMessage(new TextMessage(metaMessage.toString()));
+        } catch (IOException e) {
+            log.error("发送meta消息失败", e);
+        }
     }
 
     private boolean isValidAccessToken(WebSocketSession session) {
@@ -76,7 +90,7 @@ public class OneBotWebSocketHandler extends TextWebSocketHandler {
     protected void handleTextMessage(@NotNull WebSocketSession session, TextMessage message) {
         try {
             JsonNode payload = objectMapper.readTree(message.getPayload());
-            log.info("TOA收到消息 <-- {}", payload);
+            log.info("TKL收到到消息 <-- {}", payload);
 
             // 处理 OneBot 协议消息（示例：处理心跳）
             if (payload.has("meta_event_type") &&

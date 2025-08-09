@@ -79,15 +79,15 @@ data class PrivateMessage(
 
 @Serializable
 data class Data(
-    val echo: Int,
-    val message: String = "",
+    val echo: String,
+    val message: String? = null,
     val retcode: Int = 0,
     val status: String = "ok",
-    val wording: String = ""
+    val wording: String? = null
 ) {
-    constructor(echo: Int) : this(echo, "", 0, "ok", "")
+    constructor(echo: String) : this(echo, null, 0, "ok", null)
 
-    constructor(echo: Int, status: Boolean) : this(echo, "", 0, if (status) "ok" else "failed", "")
+    constructor(echo: String, status: Boolean) : this(echo, null, 0, if (status) "ok" else "failed", null)
 
     companion object {
 
