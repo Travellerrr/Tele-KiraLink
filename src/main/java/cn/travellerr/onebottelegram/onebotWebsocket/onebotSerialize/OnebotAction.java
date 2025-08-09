@@ -159,7 +159,7 @@ public class OnebotAction {
             msg = HibernateFactory.selectOne(cn.travellerr.onebottelegram.hibernate.entity.Message.class, msgId)
                     .getMessage();
         } catch (NullPointerException e) {
-            log.error("获取消息失败", e.getMessage());
+            log.error("获取消息失败: {}", e.getMessage());
             return new TextMessage(new JSONObject(new Data(echo, "", 1404, "failed", "")).set("data", null).toString());
         }
         msg.remove("self_id");
@@ -356,16 +356,16 @@ public class OnebotAction {
                     sb.append(message);
                     break;
                 case "image":
-                    if (msg.getJSONObject("data").getStr("file").startsWith("file://")) {
-                        File file = new File(msg.getJSONObject("data").getStr("file").substring(7));
-                        photo = new SendPhoto(chatId, file);
-                    } else if(msg.getJSONObject("data").getStr("file").startsWith("base64://")) {
-                        byte[] bytes = Base64.getDecoder().decode(msg.getJSONObject("data").getStr("file").substring(9));
+                    String filePath = msg.getJSONObject("data").getStr("file");
+                    if (filePath.startsWith("http")) {
+                        photo = new SendPhoto(chatId, filePath);
+                    } else if(filePath.startsWith("base64://")) {
+                        byte[] bytes = Base64.getDecoder().decode(filePath.substring(9));
                         photo = new SendPhoto(chatId, bytes);
                     }
-
                     else {
-                        sb.append("[图片消息, 暂不支持传输]");
+                        File file = new File(filePath.replaceFirst("^file://", ""));
+                        photo = new SendPhoto(chatId, file);
                     }
                     break;
                 case "reply":

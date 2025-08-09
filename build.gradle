@@ -22,7 +22,7 @@ plugins {
 
 
 group = 'cn.travellerr'
-version = "0.0.7-alpha"
+version = "0.0.7"
 
 
 java {
