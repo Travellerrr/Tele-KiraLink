@@ -23,22 +23,21 @@ public class AudioConverter {
                 log.error("无法获取音频流: {}", audioPath);
                 return null;
             }
+
+
+            String audioFormat = detectAudioFormat(audioStream);
+            if (audioFormat.equals("ogg") || audioFormat.equals("mp3")) {
+                // 直接支持的格式
+                log.info("音频格式已支持，无需转换");
+                return "";
+            }
+            log.info("检测到音频格式: {}", audioFormat);
             
             // 创建临时文件
             Path tempFile = createTempAudioFile(audioStream);
             if (tempFile == null) {
                 log.error("无法创建临时音频文件");
                 return null;
-            }
-            
-            // 检测音频格式
-            String audioFormat = detectAudioFormat(tempFile);
-            log.info("检测到音频格式: {}", audioFormat);
-
-            if (audioFormat.equals("ogg") || audioFormat.equals("mp3")) {
-                // 直接支持的格式
-                log.info("音频格式已支持，无需转换");
-                return tempFile.toString();
             }
             
             // 如果需要转换格式
@@ -62,22 +61,7 @@ public class AudioConverter {
         }
     }
     
-    /**
-     * 测试方法：验证音频路径类型检测
-     * @param audioPath 音频路径
-     * @return 路径类型描述
-     */
-    public static String testAudioPathType(String audioPath) {
-        if (audioPath.startsWith("http")) {
-            return "URL 音频";
-        } else if (audioPath.startsWith("base64://")) {
-            return "Base64 编码音频";
-        } else if (audioPath.startsWith("file://")) {
-            return "文件路径（带 file:// 前缀）";
-        } else {
-            return "普通文件路径";
-        }
-    }
+
     
     private static InputStream getAudioStream(String audioPath) {
         try {
@@ -121,14 +105,12 @@ public class AudioConverter {
         }
     }
     
-    private static String detectAudioFormat(Path audioFile) {
+    private static String detectAudioFormat(InputStream stream) {
         try {
             // 读取文件头来检测格式
             byte[] header = new byte[12];
-            try (InputStream is = Files.newInputStream(audioFile)) {
-                is.read(header);
-            }
-            
+            stream.read(header);
+
             // 检测常见音频格式
             if (isMp3(header)) {
                 return "mp3";

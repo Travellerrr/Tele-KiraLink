@@ -29,10 +29,7 @@ import org.springframework.web.socket.WebSocketSession;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import static org.reflections.Reflections.log;
 
@@ -335,7 +332,7 @@ public class OnebotAction {
 
         StringBuilder sb = new StringBuilder();
         SendPhoto photo = null;
-        SendAudio audio = null;
+        SendVoice audio = null;
         String convertedAudioPath = null;
         ReplyParameters replyParameters = null;
 
@@ -405,9 +402,22 @@ public class OnebotAction {
                     }
                     convertedAudioPath = AudioConverter.convertToTelegramAudio(recordFilePath);
                     if (convertedAudioPath != null) {
+                        if (convertedAudioPath.isEmpty()) {
+                            if (recordFilePath.startsWith("http")) {
+                                audio = new SendVoice(chatId, recordFilePath);
+                            } else if(recordFilePath.startsWith("base64://")) {
+                                byte[] bytes = Base64.getDecoder().decode(recordFilePath.substring(9));
+                                audio = new SendVoice(chatId, bytes);
+                            }
+                            else {
+                                File file = new File(recordFilePath.replaceFirst("^file://", ""));
+                                audio = new SendVoice(chatId, file);
+                            }
+                            continue;
+                        }
                         File audioFile = new File(convertedAudioPath);
                         if (audioFile.exists()) {
-                            audio = new SendAudio(chatId, audioFile);
+                            audio = new SendVoice(chatId, audioFile);
                         } else {
                             sb.append("[音频文件不存在]");
                         }
@@ -439,11 +449,11 @@ public class OnebotAction {
             response = TelegramApi.bot.execute(audio);
 
             try {
-                if (convertedAudioPath != null) {
+                if (convertedAudioPath != null && !convertedAudioPath.isEmpty()) {
                     Files.deleteIfExists(Paths.get(convertedAudioPath));
                 }
             } catch (Exception e) {
-                log.warn("清理临时音频文件失败: {}", e.getMessage());
+                log.error("删除临时音频文件失败", e);
             }
 
         } else {
@@ -533,11 +543,7 @@ public class OnebotAction {
 
     private static JsonObject data(String echo, String message, int retcode, String status, String wording, JsonElement data) {
         JsonObject obj = JsonParser.parseString(new Data(echo, message, retcode, status, wording).toString()).getAsJsonObject();
-        if (data != null) {
-            obj.add("data", data);
-        } else {
-            obj.add("data", JsonNull.INSTANCE);
-        }
+        obj.add("data", Objects.requireNonNullElse(data, JsonNull.INSTANCE));
         return obj;
     }
 }
