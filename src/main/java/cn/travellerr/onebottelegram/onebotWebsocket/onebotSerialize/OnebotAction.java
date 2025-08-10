@@ -314,6 +314,7 @@ public class OnebotAction {
 
         StringBuilder sb = new StringBuilder();
         SendPhoto photo = null;
+        SendVoice voice = null;
         ReplyParameters replyParameters = null;
 
         for(Object m : messageArray) {
@@ -368,6 +369,21 @@ public class OnebotAction {
                         photo = new SendPhoto(chatId, file);
                     }
                     break;
+                case "record":
+                    // TODO: how to distinguish to send as a voice or as an audio file?
+                    // currently only accept m4a(AAC/ALAC), mp3, and OPUS/ogg
+                    String recordPath = msg.getJSONObject("data").getStr("file");
+                    if (recordPath.startsWith("http")) {
+                        voice = new SendVoice(chatId, recordPath);
+                    } else if(recordPath.startsWith("base64://")) {
+                        byte[] bytes = Base64.getDecoder().decode(recordPath.substring(9));
+                        voice = new SendVoice(chatId, bytes);
+                    }
+                    else {
+                        File file = new File(recordPath.replaceFirst("^file://", ""));
+                        voice = new SendVoice(chatId, file);
+                    }
+                    break;
                 case "reply":
                     replyParameters = new ReplyParameters(Integer.valueOf(msg.getJSONObject("data").getStr("id")));
                     break;
@@ -385,6 +401,14 @@ public class OnebotAction {
             }
 
             response = TelegramApi.bot.execute(photo);
+        } else if (voice != null) {
+            voice.caption(text);
+            voice.parseMode(ParseMode.HTML);
+            if (replyParameters != null) {
+                voice.replyParameters(replyParameters);
+            }
+
+            response = TelegramApi.bot.execute(voice);
         } else {
             SendMessage request = new SendMessage(chatId, text);
             request.parseMode(ParseMode.HTML);
