@@ -1,6 +1,8 @@
 package cn.travellerr.onebottelegram.hibernate.entity;
 
 import cn.hutool.json.JSONObject;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.pengrad.telegrambot.model.Chat;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -41,8 +43,8 @@ public class Message {
         this.message = array;
     }
 
-    public JSONObject getMessage() {
-        return new JSONObject(this.message);
+    public JsonObject getMessage() {
+        return JsonParser.parseString(this.message).getAsJsonObject();
     }
 
     public void setMessage(String message) {

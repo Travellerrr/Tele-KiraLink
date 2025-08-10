@@ -2,15 +2,16 @@ package cn.travellerr.onebottelegram.onebotWebsocket.onebotSerialize;
 
 import cn.chahuyun.hibernateplus.HibernateFactory;
 import cn.hutool.core.date.DateUtil;
-import cn.hutool.json.JSONArray;
-import cn.hutool.json.JSONObject;
 import cn.travellerr.onebotApi.*;
 import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
 import cn.travellerr.onebottelegram.converter.LanguageCode;
 import cn.travellerr.onebottelegram.converter.TelegramToOnebot;
 import cn.travellerr.onebottelegram.converter.Translator;
 import cn.travellerr.onebottelegram.hibernate.entity.Group;
+import cn.travellerr.onebottelegram.model.ApiRequest;
+import cn.travellerr.onebottelegram.model.Messages;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
+import com.google.gson.*;
 import com.pengrad.telegrambot.model.*;
 import com.pengrad.telegrambot.model.request.ChatAction;
 import com.pengrad.telegrambot.model.request.ParseMode;
@@ -33,15 +34,18 @@ import java.util.List;
 import static org.reflections.Reflections.log;
 
 public class OnebotAction {
+
+    private static final Gson GSON = new Gson();
+
     public static void handleAction(WebSocketSession session, String payload) {
-        JSONObject jsonObject = new JSONObject(payload);
-        String action = jsonObject.getStr("action");
-        String echo = jsonObject.getStr("echo", "0");
+        ApiRequest.BaseApiRequest jsonObject = GSON.fromJson(payload, ApiRequest.BaseApiRequest.class);
+        String action = jsonObject.getAction();
+        String echo = jsonObject.getEcho();
         try {
         long groupId, userId;
         int msgId;
         String message, title, groupName;
-        JSONObject params = jsonObject.getJSONObject("params");
+        ApiRequest.Params params = jsonObject.getParams();
 
         switch (action) {
             case "get_version_info":
@@ -58,76 +62,76 @@ public class OnebotAction {
                 session.sendMessage(getGroupList(echo));
                 break;
             case "get_group_member_list":
-                groupId = -Math.abs(params.getLong("group_id"));
+                groupId = -Math.abs(params.getGroupId());
                 session.sendMessage(getGroupMemberList(echo, groupId));
                 break;
             case "get_group_info":
-                groupId = -Math.abs(params.getLong("group_id"));
+                groupId = -Math.abs(params.getGroupId());
                 session.sendMessage(getGroupInfo(echo, groupId));
                 break;
             case "get_group_member_info":
-                groupId = -params.getLong("group_id");
-                userId = params.getLong("user_id");
+                groupId = -params.getGroupId();
+                userId = params.getUserId();
                 session.sendMessage(getGroupMemberInfo(echo, groupId, userId));
                 break;
             case "get_msg":
-                msgId = params.getInt("message_id");
+                msgId = params.getMessageId();
                 session.sendMessage(getMsg(echo, msgId));
                 break;
             case "set_group_ban":
-                groupId = -params.getLong("group_id");
-                userId = params.getLong("user_id");
-                int duration = params.getInt("duration", 0) == 0 ? 0 : Math.max(params.getInt("duration"), 30);
+                groupId = -params.getGroupId();
+                userId = params.getUserId();
+                int duration = params.getDuration() == 0 ? 0 : Math.max(params.getDuration(), 30);
                 session.sendMessage(setGroupBan(groupId, userId, duration));
                 break;
             case "delete_msg":
-                msgId = params.getInt("message_id");
+                msgId = params.getMessageId();
                 session.sendMessage(deleteMessage(echo, msgId));
                 break;
             case "send_group_msg":
-                groupId = -params.getLong("group_id");
-                message = params.getStr("message");
+                groupId = -params.getGroupId();
+                message = params.getMessage().toString();
                 session.sendMessage(sendMessage(echo, groupId, message, true));
                 break;
             case "send_private_msg":
-                userId = params.getLong("user_id");
-                message = params.getStr("message");
+                userId = params.getUserId();
+                message = params.getMessage().toString();
                 session.sendMessage(sendMessage(echo, userId, message, false));
                 break;
             case "send_msg":
-                userId = params.getLong("user_id", -1L);
-                groupId = -params.getLong("group_id", -1L);
-                message = params.getStr("message");
+                userId = params.getUserId();
+                groupId = -params.getGroupId();
+                message = params.getMessage().toString();
                 boolean isPrivate = userId != -1L;
                 long targetId = isPrivate ? userId : groupId;
                 session.sendMessage(sendMessage(echo, targetId, message, !isPrivate));
                 break;
             case "set_group_special_title":
-                groupId = -params.getLong("group_id");
-                userId = params.getLong("user_id");
-                title = params.getStr("special_title");
+                groupId = -params.getGroupId();
+                userId = params.getUserId();
+                title = params.getSpecialTitle();
                 TelegramApi.bot.execute(new SendChatAction(groupId, ChatAction.typing));
                 TelegramApi.bot.execute(new PromoteChatMember(groupId, userId).canManageChat(true));
                 TelegramApi.bot.execute(new SetChatAdministratorCustomTitle(groupId, userId, title));
                 break;
             case "set_group_name":
-                groupId = -params.getLong("group_id");
-                groupName = params.getStr("group_name");
+                groupId = -params.getGroupId();
+                groupName = params.getGroupName();
                 TelegramApi.bot.execute(new SetChatTitle(groupId, groupName));
                 break;
             case "set_group_kick":
-                groupId = -params.getLong("group_id");
-                userId = params.getLong("user_id");
+                groupId = -params.getGroupId();
+                userId = params.getUserId();
                 BaseResponse response = TelegramApi.bot.execute(new BanChatMember(groupId, userId).untilDate(30));
                 System.out.println(response.description());
                 break;
             case "set_group_admin":
-                groupId = -params.getLong("group_id");
-                userId = params.getLong("user_id");
+                groupId = -params.getGroupId();
+                userId = params.getUserId();
                 TelegramApi.bot.execute(new PromoteChatMember(groupId, userId).canManageChat(true));
                 break;
             case "get_avatar":
-                userId = params.getLong("user_id");
+                userId = params.getUserId();
                 UserProfilePhotos userProfilePhotos = TelegramApi.bot.execute(new GetUserProfilePhotos(userId)).photos();
                 String avatarId = "";
 
@@ -140,12 +144,21 @@ public class OnebotAction {
                     }
                 }
 
-                JSONObject obj = new JSONObject(new Data(echo, true)).set("message", avatarId);
+                JsonObject obj = data(echo, true);
+                obj.addProperty("message", avatarId);
                 session.sendMessage(new TextMessage(obj.toString()));
+                break;
+            case "get_status":
+                JsonObject statusObject = data(echo, true);
+                statusObject.addProperty("online", true);
+                statusObject.addProperty("good", true);
+                session.sendMessage(new TextMessage(statusObject.toString()));
                 break;
             default:
                 log.error("未知的 OneBot 消息: {}", action);
-                session.sendMessage(new TextMessage(new JSONObject(new Data(echo, "", 1404, "failed", "")).set("data", null).toString()));
+                JsonObject object = GSON.fromJson(new Data(echo, "", 1404, "failed", "").toString(), JsonObject.class);
+                object.add("data", JsonNull.INSTANCE);
+                session.sendMessage(new TextMessage(object.toString()));
                 break;
         }
         } catch (Exception e) {
@@ -154,13 +167,13 @@ public class OnebotAction {
     }
 
     private static WebSocketMessage<?> getMsg(String echo, int msgId) {
-        JSONObject msg;
+        JsonObject msg;
         try {
             msg = HibernateFactory.selectOne(cn.travellerr.onebottelegram.hibernate.entity.Message.class, msgId)
                     .getMessage();
         } catch (NullPointerException e) {
             log.error("获取消息失败: {}", e.getMessage());
-            return new TextMessage(new JSONObject(new Data(echo, "", 1404, "failed", "")).set("data", null).toString());
+            return new TextMessage(data(echo, "", 1404, "failed", "").toString());
         }
         msg.remove("self_id");
         msg.remove("post_type");
@@ -173,8 +186,10 @@ public class OnebotAction {
            msg.remove("group_id");
         } catch (Exception ignored) {
         }
-        msg.set("real_id", msg.get("message_id"));
-        return new TextMessage(new JSONObject(new Data(echo, "", 0, "ok", "")).set("data", msg).toString());
+        msg.add("real_id", msg.get("message_id"));
+        return new TextMessage(
+                data(echo, "", 0, "ok", "", msg).toString()
+        );
 
     }
 
@@ -205,57 +220,58 @@ public class OnebotAction {
         }
         boolean status = response.isOk();
 
-        return new TextMessage(new JSONObject(new Data("0", status)).toString());
+        return new TextMessage(data("0", status).toString());
     }
 
 
     private static WebSocketMessage<?> getGroupInfo(String echo, long groupId) {
         ChatFullInfo info = TelegramApi.bot.execute(new GetChat(groupId)).chat();
         int count = TelegramApi.bot.execute(new GetChatMemberCount(groupId)).count();
-        JSONObject object = new JSONObject(new Data(echo));
-        object.set("data", new GroupInfo(Math.abs(groupId), info.title(), count, 2000));
+        JsonObject object = data(echo);
+        object.add("data", GSON.toJsonTree(new GroupInfo(Math.abs(groupId), info.title(), count, 2000)));
 
         return new TextMessage(object.toString());
     }
 
 
     private static TextMessage message(String echo, Object message) {
-        JSONObject object = new JSONObject(new Data(echo));
-        JSONObject messages = new JSONObject(message);
-        object.set("data", messages);
+        JsonObject object = data(echo);
+        JsonElement messages = GSON.toJsonTree(message);
+        object.add("data", messages);
         log.info("发送消息至 Onebot --> {}", object);
         return new TextMessage(object.toString());
     }
 
     private static TextMessage deleteMessage(String echo, int msgId) {
-        long chatId = -Math.abs(TelegramToOnebot.messageIdToChatId.get(msgId));
+        long chatId = TelegramToOnebot.messageIdToChatId.get(msgId);
+        System.out.println("删除消息: " + chatId + " " + msgId);
         TelegramApi.bot.execute(new DeleteMessage(chatId, Math.toIntExact(msgId)));
-        JSONObject object = new JSONObject(new Data(echo)).set("data", new JSONArray());
-
+        JsonObject object = data(echo);
+        object.add("data", new JsonArray());
         log.info("发送消息至 Onebot --> {}", object);
         return new TextMessage(object.toString());
     }
 
     private static TextMessage getFriendList(String echo) {
-        JSONObject object = new JSONObject(new Data(echo));
-        Friend friend = new Friend(0, "Tra", "Tra");
+        JsonObject object = data(echo);
+        Friend friend = new Friend(0, "Tele-KiraLink", "Tele-KiraLink");
         List<Friend> friends = List.of(friend);
-        JSONArray messages = new JSONArray(friends.toArray());
-        object.set("data", messages);
+        JsonArray messages = GSON.toJsonTree(friends).getAsJsonArray();
+        object.add("data", messages);
+
         log.info("发送消息至 Onebot --> {}", object);
         return new TextMessage(object.toString());
     }
 
     public static TextMessage getGroupList(String echo) {
-        JSONObject object = new JSONObject(new Data(echo));
+        JsonObject object = data(echo);
+
         List<Group> groupList = HibernateFactory.selectList(Group.class);
 
-
         if (groupList == null) {
-            object.set("data", new JSONObject(new GetGroupList(List.of())));
+            object.add("data", GSON.toJsonTree(new GetGroupList(List.of())));
             return new TextMessage(object.toString());
         }
-
 
         List<GroupInfo> groupInfoList = new ArrayList<>();
 
@@ -263,19 +279,19 @@ public class OnebotAction {
             groupInfoList.add(new GroupInfo(-group.getGroupId(), group.getGroupName(), group.getMemberCount(), group.getMaxMemberCount()));
         }
 
-        JSONArray messages = new JSONArray(groupInfoList.toArray());
+        JsonArray messages = GSON.toJsonTree(groupInfoList).getAsJsonArray();
 
-        object.set("data", messages);
+        object.add("data", messages);
         log.info("发送消息至 Onebot --> {}", object);
         return new TextMessage(object.toString());
 
     }
 
     private static TextMessage getGroupMemberList(String echo, long groupId) {
-        JSONObject object = new JSONObject(new Data(echo));
+        JsonObject object = data(echo);
         Group group = HibernateFactory.selectOne(Group.class, groupId);
         if (group == null) {
-            object.set("data", new JSONObject(new GetGroupMemberListResponse(List.of())));
+            object.add("data", GSON.toJsonTree(new GetGroupMemberListResponse(List.of())));
             return new TextMessage(object.toString());
         }
 
@@ -285,30 +301,32 @@ public class OnebotAction {
             memberInfoList.add(getChatMember(groupId, memberId));
         }
 
-        JSONArray messages = new JSONArray(memberInfoList.toArray());
-        object.set("data", messages);
+        JsonArray messages = GSON.toJsonTree(memberInfoList).getAsJsonArray();
+        object.add("data", messages);
         log.info("发送消息至 Onebot --> {}", object);
         return new TextMessage(object.toString());
     }
 
     private static TextMessage getGroupMemberInfo(String echo, long groupId, long memberId) {
-        JSONObject object = new JSONObject(new Data(echo));
+        JsonObject object = data(echo);
 
         getChatMember(groupId, memberId);
         MemberInfo memberInfo = getChatMember(groupId, memberId);
 
 
-        object.set("data", memberInfo);
+        object.add("data", GSON.toJsonTree(memberInfo));
         log.info("发送消息至 Onebot --> {}", object);
         return new TextMessage(object.toString());
     }
 
     public static TextMessage sendMessage(String echo, long chatId, String messageStr, boolean isGroup) {
         String realMessage = messageStr;
+        System.out.println(realMessage);
         if (!TelegramOnebotAdapter.config.getOnebot().isUseArray()) {
             realMessage = TelegramToOnebot.stringMessageToArray(messageStr);
         }
-        JSONArray messageArray = new JSONArray(realMessage);
+
+        JsonArray messageArray = JsonParser.parseString(realMessage).getAsJsonArray();
 
         LanguageCode languageCode = LanguageCode.ZH_HANS;
 
@@ -317,13 +335,13 @@ public class OnebotAction {
         SendVoice voice = null;
         ReplyParameters replyParameters = null;
 
-        for(Object m : messageArray) {
+        for(JsonElement m : messageArray) {
+            Messages.BaseMessage baseMessage = GSON.fromJson(m, Messages.BaseMessage.class);
 
-            JSONObject msg = (JSONObject) m;
 
-            switch (msg.getStr("type")) {
+            switch (baseMessage.getType()) {
                 case "at":
-                    Long userId = msg.getJSONObject("data").getLong("qq");
+                    Long userId = baseMessage.getData().getQq();
                     String username, firstName;
 
                     if (isGroup) {
@@ -341,7 +359,7 @@ public class OnebotAction {
                     sb.append(username != null ? "@" + username : "<a href=\"tg://user?id=" + userId + "\">" + firstName + "</a>");
                     break;
                 case "text":
-                    String message = msg.getJSONObject("data").getStr("text");
+                    String message = baseMessage.getData().getText();
                     if (!message.startsWith("html://")) {
                         message = message
                                 .replace("&", "&amp;")
@@ -357,7 +375,7 @@ public class OnebotAction {
                     sb.append(message);
                     break;
                 case "image":
-                    String filePath = msg.getJSONObject("data").getStr("file");
+                    String filePath = baseMessage.getData().getFile();
                     if (filePath.startsWith("http")) {
                         photo = new SendPhoto(chatId, filePath);
                     } else if(filePath.startsWith("base64://")) {
@@ -385,7 +403,7 @@ public class OnebotAction {
                     }
                     break;
                 case "reply":
-                    replyParameters = new ReplyParameters(Integer.valueOf(msg.getJSONObject("data").getStr("id")));
+                    replyParameters = new ReplyParameters(baseMessage.getData().getId());
                     break;
             }
         }
@@ -421,7 +439,8 @@ public class OnebotAction {
 
 
         if (!response.isOk()) {
-            JSONObject obj = new JSONObject().set("error_code", response.description());
+            JsonObject obj = new JsonObject();
+            obj.addProperty("error_code", response.description());
             int messageId = TelegramApi.bot.execute(new SendMessage(chatId, "发送失败: " + response.description())).message().messageId();
 
             new Thread(() -> {
@@ -434,12 +453,13 @@ public class OnebotAction {
             }).start();
 
             log.info("发送消息至 Onebot --> {}", obj);
-            return new TextMessage(new JSONObject(new Data(echo, "", 1404, "failed", "")).set("data", null).toString());
+            return new TextMessage(data(echo, "", 1404, "failed", "", null).toString());
         } else {
-            TelegramToOnebot.messageIdToChatId.put(response.message().messageId(), chatId);
-            JSONObject obj = new JSONObject().set("message_id", response.message().messageId());
+            TelegramToOnebot.messageIdToChatId.put(response.message().messageId(), isGroup ? -Math.abs(chatId) : Math.abs(chatId));
 
-            JSONObject object = new JSONObject(new Data(echo, "", 0, "ok", "")).set("data", obj);
+            JsonObject obj = new JsonObject();
+            obj.addProperty("message_id", response.message().messageId());
+            JsonObject object = data(echo, "", 0, "ok", "", obj);
             log.info("发送消息至 Onebot --> {}", object);
             return new TextMessage(object.toString());
         }
@@ -477,5 +497,27 @@ public class OnebotAction {
             case "administrator" -> "admin";
             default -> "member";
         };
+    }
+
+    private static JsonObject data(String echo) {
+        return JsonParser.parseString(new Data(echo).toString()).getAsJsonObject();
+    }
+
+    private static JsonObject data(String echo, boolean status) {
+        return JsonParser.parseString(new Data(echo, status).toString()).getAsJsonObject();
+    }
+
+    private static JsonObject data(String echo, String message, int retcode, String status, String wording) {
+        return JsonParser.parseString(new Data(echo, message, retcode, status, wording).toString()).getAsJsonObject();
+    }
+
+    private static JsonObject data(String echo, String message, int retcode, String status, String wording, JsonElement data) {
+        JsonObject obj = JsonParser.parseString(new Data(echo, message, retcode, status, wording).toString()).getAsJsonObject();
+        if (data != null) {
+            obj.add("data", data);
+        } else {
+            obj.add("data", JsonNull.INSTANCE);
+        }
+        return obj;
     }
 }

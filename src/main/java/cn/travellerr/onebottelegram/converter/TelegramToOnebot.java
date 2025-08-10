@@ -10,9 +10,11 @@ import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
 import cn.travellerr.onebottelegram.hibernate.HibernateUtil;
 import cn.travellerr.onebottelegram.hibernate.entity.Group;
 import cn.travellerr.onebottelegram.hibernate.entity.Message;
+import cn.travellerr.onebottelegram.model.Messages;
 import cn.travellerr.onebottelegram.onebotWebsocket.OneBotWebSocketHandler;
 import cn.travellerr.onebottelegram.telegramApi.TelegramApi;
 import cn.travellerr.onebottelegram.webui.api.LogWebSocketHandler;
+import com.google.gson.JsonArray;
 import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.PhotoSize;
 import com.pengrad.telegrambot.model.Update;
@@ -280,29 +282,32 @@ public class TelegramToOnebot implements ApplicationRunner {
     }
 
     public static String stringMessageToArray(String message) {
-        JSONArray arrayMessage = new JSONArray();
+        JsonArray arrayMessage = new JsonArray();
         Matcher matcher = Pattern.compile("\\[CQ:(\\S+?)(,\\S+)?]").matcher(message);
         int lastIndex = 0;
         while (matcher.find()) {
             String msg = message.substring(lastIndex, matcher.start());
             if (!msg.isEmpty()) {
-                Text messageObject = new Text(specialCharacterUnescape(msg));
+                Messages.Text messageObject = new Messages.Text(specialCharacterUnescape(msg));
                 arrayMessage.add(messageObject);
             }
             lastIndex = matcher.end();
             String type = matcher.group(1);
             String data = matcher.group(2);
             if (type.equals("at")) {
-                At atObject = new At(Long.parseLong(data.substring(4)));
+                Messages.At atObject = new Messages.At(Long.parseLong(data.substring(4)));
                 arrayMessage.add(atObject);
             } else if (type.equals("image")) {
-                Image imageObject = new Image(data.substring(5));
+                Messages.Image imageObject = new Messages.Image(data.substring(5));
                 arrayMessage.add(imageObject);
+            } else if (type.equals("record")) {
+                Messages.Record recordObject = new Messages.Record(data.substring(5));
+                arrayMessage.add(recordObject);
             }
         }
         String msg = message.substring(lastIndex);
         if (!msg.isEmpty()) {
-            Text messageObject = new Text(specialCharacterUnescape(msg));
+            Messages.Text messageObject = new Messages.Text(specialCharacterUnescape(msg));
             arrayMessage.add(messageObject);
         }
         return arrayMessage.toString();
