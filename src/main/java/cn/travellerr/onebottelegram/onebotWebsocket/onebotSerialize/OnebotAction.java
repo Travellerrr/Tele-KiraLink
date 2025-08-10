@@ -368,6 +368,21 @@ public class OnebotAction {
                         photo = new SendPhoto(chatId, file);
                     }
                     break;
+                case "record":
+                    // TODO: how to distinguish to send as a voice or as an audio file?
+                    // currently only accept m4a(AAC/ALAC), mp3, and OPUS/ogg
+                    String filePath = msg.getJSONObject("data").getStr("file");
+                    if (filePath.startsWith("http")) {
+                        photo = new SendVoice(chatId, filePath);
+                    } else if(filePath.startsWith("base64://")) {
+                        byte[] bytes = Base64.getDecoder().decode(filePath.substring(9));
+                        photo = new SendVoice(chatId, bytes);
+                    }
+                    else {
+                        File file = new File(filePath.replaceFirst("^file://", ""));
+                        photo = new SendVoice(chatId, file);
+                    }
+                    break;
                 case "reply":
                     replyParameters = new ReplyParameters(Integer.valueOf(msg.getJSONObject("data").getStr("id")));
                     break;
