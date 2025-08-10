@@ -289,26 +289,26 @@ public class TelegramToOnebot implements ApplicationRunner {
             String msg = message.substring(lastIndex, matcher.start());
             if (!msg.isEmpty()) {
                 Messages.Text messageObject = new Messages.Text(specialCharacterUnescape(msg));
-                arrayMessage.add(messageObject);
+                arrayMessage.add(messageObject.toJson());
             }
             lastIndex = matcher.end();
             String type = matcher.group(1);
             String data = matcher.group(2);
             if (type.equals("at")) {
                 Messages.At atObject = new Messages.At(Long.parseLong(data.substring(4)));
-                arrayMessage.add(atObject);
+                arrayMessage.add(atObject.toJson());
             } else if (type.equals("image")) {
                 Messages.Image imageObject = new Messages.Image(data.substring(5));
-                arrayMessage.add(imageObject);
+                arrayMessage.add(imageObject.toJson());
             } else if (type.equals("record")) {
                 Messages.Record recordObject = new Messages.Record(data.substring(5));
-                arrayMessage.add(recordObject);
+                arrayMessage.add(recordObject.toJson());
             }
         }
         String msg = message.substring(lastIndex);
         if (!msg.isEmpty()) {
             Messages.Text messageObject = new Messages.Text(specialCharacterUnescape(msg));
-            arrayMessage.add(messageObject);
+            arrayMessage.add(messageObject.toJson());
         }
         return arrayMessage.toString();
     }

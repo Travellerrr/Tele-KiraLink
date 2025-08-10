@@ -90,18 +90,10 @@ public class Config implements Serializable {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class spring implements Serializable {
-        private Config.spring.jackson jackson;
         private Config.spring.database database;
         private Config.spring.webui webui;
+        private String ffmpegPath;
 
-        @Data
-        @Builder
-        @AllArgsConstructor
-        @NoArgsConstructor
-        public static class jackson implements Serializable {
-            private String dateformat;
-            private String timezone;
-        }
 
         @Data
         @Builder

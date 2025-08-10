@@ -4,6 +4,7 @@ import cn.chahuyun.hibernateplus.HibernateFactory;
 import cn.hutool.core.date.DateUtil;
 import cn.travellerr.onebotApi.*;
 import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
+import cn.travellerr.onebottelegram.converter.AudioConverter;
 import cn.travellerr.onebottelegram.converter.LanguageCode;
 import cn.travellerr.onebottelegram.converter.TelegramToOnebot;
 import cn.travellerr.onebottelegram.converter.Translator;
@@ -26,6 +27,8 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
@@ -35,7 +38,7 @@ import static org.reflections.Reflections.log;
 
 public class OnebotAction {
 
-    private static final Gson GSON = new Gson();
+    public static final Gson GSON = new Gson();
 
     public static void handleAction(WebSocketSession session, String payload) {
         ApiRequest.BaseApiRequest jsonObject = GSON.fromJson(payload, ApiRequest.BaseApiRequest.class);
@@ -332,11 +335,12 @@ public class OnebotAction {
 
         StringBuilder sb = new StringBuilder();
         SendPhoto photo = null;
-        SendVoice voice = null;
+        SendAudio audio = null;
+        String convertedAudioPath = null;
         ReplyParameters replyParameters = null;
 
         for(JsonElement m : messageArray) {
-            Messages.BaseMessage baseMessage = GSON.fromJson(m, Messages.BaseMessage.class);
+            Messages.BaseMessage baseMessage = GSON.fromJson(m.toString(), Messages.BaseMessage.class);
 
 
             switch (baseMessage.getType()) {
@@ -375,36 +379,42 @@ public class OnebotAction {
                     sb.append(message);
                     break;
                 case "image":
-                    String filePath = baseMessage.getData().getFile();
-                    if (filePath.startsWith("http")) {
-                        photo = new SendPhoto(chatId, filePath);
-                    } else if(filePath.startsWith("base64://")) {
-                        byte[] bytes = Base64.getDecoder().decode(filePath.substring(9));
+                    String imageFilePath = baseMessage.getData().getFile();
+                    if (imageFilePath.startsWith("http")) {
+                        photo = new SendPhoto(chatId, imageFilePath);
+                    } else if(imageFilePath.startsWith("base64://")) {
+                        byte[] bytes = Base64.getDecoder().decode(imageFilePath.substring(9));
                         photo = new SendPhoto(chatId, bytes);
-                    }
-                    else {
-                        File file = new File(filePath.replaceFirst("^file://", ""));
+                    } else {
+                        File file = new File(imageFilePath.replaceFirst("^file://", ""));
                         photo = new SendPhoto(chatId, file);
-                    }
-                    break;
-                case "record":
-                    // TODO: how to distinguish to send as a voice or as an audio file?
-                    // currently only accept m4a(AAC/ALAC), mp3, and OPUS/ogg
-                    String recordPath = msg.getJSONObject("data").getStr("file");
-                    if (recordPath.startsWith("http")) {
-                        voice = new SendVoice(chatId, recordPath);
-                    } else if(recordPath.startsWith("base64://")) {
-                        byte[] bytes = Base64.getDecoder().decode(recordPath.substring(9));
-                        voice = new SendVoice(chatId, bytes);
-                    }
-                    else {
-                        File file = new File(recordPath.replaceFirst("^file://", ""));
-                        voice = new SendVoice(chatId, file);
                     }
                     break;
                 case "reply":
                     replyParameters = new ReplyParameters(baseMessage.getData().getId());
                     break;
+                case "record":
+                    if (TelegramOnebotAdapter.config.getSpring().getFfmpegPath().isEmpty()) {
+                        sb.append("[未配置ffmpeg，无法发送语音消息]");
+                        break;
+                    }
+                    String recordFilePath = baseMessage.getData().getFile();
+                    if (recordFilePath == null || recordFilePath.isEmpty()) {
+                        sb.append("[语音消息文件路径为空]");
+                        break;
+                    }
+                    convertedAudioPath = AudioConverter.convertToTelegramAudio(recordFilePath);
+                    if (convertedAudioPath != null) {
+                        File audioFile = new File(convertedAudioPath);
+                        if (audioFile.exists()) {
+                            audio = new SendAudio(chatId, audioFile);
+                        } else {
+                            sb.append("[音频文件不存在]");
+                        }
+                    } else {
+                        sb.append("[无法转换语音消息]");
+                    }
+
             }
         }
 
@@ -419,14 +429,23 @@ public class OnebotAction {
             }
 
             response = TelegramApi.bot.execute(photo);
-        } else if (voice != null) {
-            voice.caption(text);
-            voice.parseMode(ParseMode.HTML);
+        } else if (audio != null) {
+            audio.caption(text);
+            audio.parseMode(ParseMode.HTML);
             if (replyParameters != null) {
-                voice.replyParameters(replyParameters);
+                audio.replyParameters(replyParameters);
             }
 
-            response = TelegramApi.bot.execute(voice);
+            response = TelegramApi.bot.execute(audio);
+
+            try {
+                if (convertedAudioPath != null) {
+                    Files.deleteIfExists(Paths.get(convertedAudioPath));
+                }
+            } catch (Exception e) {
+                log.warn("清理临时音频文件失败: {}", e.getMessage());
+            }
+
         } else {
             SendMessage request = new SendMessage(chatId, text);
             request.parseMode(ParseMode.HTML);
@@ -436,6 +455,7 @@ public class OnebotAction {
 
             response = TelegramApi.bot.execute(request);
         }
+
 
 
         if (!response.isOk()) {
