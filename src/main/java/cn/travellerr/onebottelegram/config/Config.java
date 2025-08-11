@@ -83,6 +83,7 @@ public class Config implements Serializable {
             private boolean banGroupUser;
             private String groupUserWarning;
             private boolean picBase64;
+            private int silkSampleRate;
     }
 
     @Data

@@ -1,5 +1,8 @@
 package cn.travellerr.onebottelegram.converter;
 
+import cn.travellerr.onebottelegram.TelegramOnebotAdapter;
+import io.github.kasukusakura.silkcodec.SilkCoder;
+
 import java.io.*;
 import java.net.URL;
 import java.nio.file.Files;
@@ -26,15 +29,23 @@ public class AudioConverter {
 
 
             String audioFormat = detectAudioFormat(audioStream);
-            if (audioFormat.equals("ogg") || audioFormat.equals("mp3")) {
+            if (isSupportedFormat(audioFormat)) {
                 // 直接支持的格式
                 log.info("音频格式已支持，无需转换");
                 return "";
             }
             log.info("检测到音频格式: {}", audioFormat);
-            
+
+
             // 创建临时文件
-            Path tempFile = createTempAudioFile(audioStream);
+            Path tempFile;
+            if ("silk".equalsIgnoreCase(audioFormat)) {
+                tempFile = convertSilkToPcm(audioPath);
+                audioFormat = "pcm";
+            } else {
+                tempFile = createTempAudioFile(audioStream);
+            }
+
             if (tempFile == null) {
                 log.error("无法创建临时音频文件");
                 return null;
@@ -43,7 +54,13 @@ public class AudioConverter {
             // 如果需要转换格式
             Path convertedFile = tempFile;
             if (!isSupportedFormat(audioFormat)) {
-                convertedFile = convertToOgg(tempFile);
+                if ("pcm".equalsIgnoreCase(audioFormat)) {
+                    // 如果是 PCM 格式，转换为 OGG
+                    convertedFile = convertToOgg(tempFile, true);
+                } else {
+                    // 其他格式转换为 OGG
+                    convertedFile = convertToOgg(tempFile);
+                }
                 if (convertedFile == null) {
                     log.error("音频格式转换失败");
                     return null;
@@ -124,6 +141,8 @@ public class AudioConverter {
                 return "m4a";
             } else if (isAac(header)) {
                 return "aac";
+            } else if (isSilk(header)) {
+                return "silk";
             } else {
                 return "unknown";
             }
@@ -174,17 +193,35 @@ public class AudioConverter {
                header[6] == 'y' && 
                header[7] == 'p';
     }
+
+    private static boolean isSilk(byte[] header) {
+        return header.length >= 10 &&
+               header[1] == '#' &&
+               header[2] == '!' &&
+               header[3] == 'S' &&
+               header[4] == 'I' &&
+               header[5] == 'L' &&
+               header[6] == 'K' &&
+               header[7] == '_' &&
+               header[8] == 'V' &&
+               header[9] == '3';
+    }
     
     private static boolean isAac(byte[] header) {
         return header.length >= 2 && 
                (header[0] == (byte) 0xFF && (header[1] & 0xF0) == 0xF0);
     }
+
     
     private static boolean isSupportedFormat(String format) {
         return "mp3".equalsIgnoreCase(format) || "ogg".equalsIgnoreCase(format);
     }
-    
+
     private static Path convertToOgg(Path inputFile) {
+        return convertToOgg(inputFile, false);
+    }
+    
+    public static Path convertToOgg(Path inputFile, boolean isPcm) {
         try {
             String ffmpegPath = cn.travellerr.onebottelegram.TelegramOnebotAdapter.config.getSpring().getFfmpegPath();
             if (ffmpegPath == null || ffmpegPath.trim().isEmpty()) {
@@ -195,14 +232,32 @@ public class AudioConverter {
             Path outputFile = Files.createTempFile("converted_audio_", ".ogg");
             
             // 构建 FFmpeg 命令
-            ProcessBuilder pb = new ProcessBuilder(
-                ffmpegPath,
-                "-i", inputFile.toString(),
-                "-c:a", "libvorbis",
-                "-q:a", "4",
-                "-y", // 覆盖输出文件
-                outputFile.toString()
-            );
+            ProcessBuilder pb;
+            if (isPcm) {
+                pb = new ProcessBuilder(
+                        ffmpegPath,
+                        "-f", "s16le",
+                        "-ar", String.valueOf(TelegramOnebotAdapter.config.getOnebot().getSilkSampleRate() > 0
+                                ? TelegramOnebotAdapter.config.getOnebot().getSilkSampleRate()
+                                : 24000),
+                        "-ac", "1",
+                        "-i", inputFile.toString(),
+                        "-c:a", "libvorbis",
+                        "-q:a", "4",
+                        "-y",
+                        outputFile.toString()
+                );
+
+            } else {
+                pb = new ProcessBuilder(
+                        ffmpegPath,
+                        "-i", inputFile.toString(),
+                        "-c:a", "libvorbis",
+                        "-q:a", "4",
+                        "-y", // 覆盖输出文件
+                        outputFile.toString()
+                );
+            }
             
             pb.redirectErrorStream(true);
             Process process = pb.start();
@@ -221,12 +276,32 @@ public class AudioConverter {
                 Files.deleteIfExists(outputFile);
                 return null;
             }
+            if (isPcm) {
+                Files.deleteIfExists(inputFile);
+            }
             
             log.info("音频转换成功: {} -> {}", inputFile.getFileName(), outputFile.getFileName());
             return outputFile;
             
         } catch (Exception e) {
             log.error("音频转换过程中发生错误: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    public static Path convertSilkToPcm(String path) {
+        try (InputStream inputStream = getAudioStream(path)){
+            File tempFile = Files.createTempFile("silk_converted_", ".pcm").toFile();
+
+            try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(tempFile))) {
+                SilkCoder.decode(inputStream, outputStream, true, 24000, 20);
+
+                outputStream.flush();
+            }
+            log.info("Silk 转 PCM 成功: {}", tempFile.getAbsolutePath());
+            return tempFile.toPath();
+        } catch (IOException | UnsupportedOperationException e) {
+            log.error("Silk 转 PCM 失败: ", e);
             return null;
         }
     }

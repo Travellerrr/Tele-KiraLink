@@ -158,6 +158,7 @@ public class ConfigGenerator {
                         .banGroupUser(true)
                         .groupUserWarning("")
                         .picBase64(true)
+                        .silkSampleRate(24000)
                         .build())
                 .spring(Config.spring.builder()
                         .database(Config.spring.database.builder()
