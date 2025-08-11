@@ -530,15 +530,15 @@ public class OnebotAction {
     }
 
     private static JsonObject data(String echo) {
-        return JsonParser.parseString(new Data(echo).toString()).getAsJsonObject();
+        return data(echo, "", 0, "ok", "");
     }
 
     private static JsonObject data(String echo, boolean status) {
-        return JsonParser.parseString(new Data(echo, status).toString()).getAsJsonObject();
+        return data(echo, "", 0, status ? "ok" : "failed", "");
     }
 
     private static JsonObject data(String echo, String message, int retcode, String status, String wording) {
-        return JsonParser.parseString(new Data(echo, message, retcode, status, wording).toString()).getAsJsonObject();
+        return data(echo, message, retcode, status, wording, null);
     }
 
     private static JsonObject data(String echo, String message, int retcode, String status, String wording, JsonElement data) {
